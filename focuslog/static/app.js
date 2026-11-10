@@ -1,5 +1,6 @@
 (() => {
   const CIRC = 2 * Math.PI * 104;
+  const BASE_TITLE = "Focus Log — Know what steals your attention";
   const CATEGORY_LABELS = {
     chat: "Chat / Slack",
     social: "Social",
@@ -12,6 +13,18 @@
     other: "Other",
   };
 
+  // Keyword → category, so most pulls need zero extra clicks.
+  const CATEGORY_HINTS = [
+    ["chat", /slack|teams|discord|dm\b|chat|message|ping|whatsapp|telegram/i],
+    ["social", /twitter|\bx\b|reddit|instagram|tiktok|youtube|facebook|linkedin|social|scroll|feed|shorts?/i],
+    ["email", /e-?mail|inbox|gmail|outlook/i],
+    ["phone", /phone|text|call|notification|buzz|unlock/i],
+    ["meetings", /meeting|standup|zoom|invite|call with/i],
+    ["people", /coworker|colleague|boss|someone|person|kid|family|partner|stopped by|question/i],
+    ["environment", /noise|snack|coffee|water|hungry|tired|cold|hot|loud|bathroom|food/i],
+    ["web", /tab|browse|google|search|news|curios|web|website|wiki/i],
+  ];
+
   const els = {
     ringWrap: document.querySelector(".ring-wrap"),
     ringProgress: document.querySelector(".ring-progress"),
@@ -19,13 +32,19 @@
     digits: document.getElementById("timer-digits"),
     label: document.getElementById("timer-label"),
     heroStatus: document.getElementById("hero-status"),
+    loopTrack: document.getElementById("loop-track"),
     startForm: document.getElementById("start-form"),
     activeActions: document.getElementById("active-actions"),
     minutes: document.getElementById("minutes"),
+    presets: Array.from(document.querySelectorAll(".preset")),
     workLabel: document.getElementById("label"),
+    btnStart: document.getElementById("btn-start"),
     btnBreak: document.getElementById("btn-break"),
     btnDone: document.getElementById("btn-done"),
     btnAbort: document.getElementById("btn-abort"),
+    pullCard: document.getElementById("distract-section"),
+    pullSub: document.getElementById("pull-sub"),
+    pullCount: document.getElementById("pull-count"),
     distractForm: document.getElementById("distract-form"),
     reason: document.getElementById("reason"),
     category: document.getElementById("category"),
@@ -33,10 +52,11 @@
     weekRange: document.getElementById("week-range"),
     weekPrev: document.getElementById("week-prev"),
     weekNext: document.getElementById("week-next"),
+    weekBody: document.getElementById("week-body"),
+    emptyWeek: document.getElementById("empty-week"),
     mFocus: document.getElementById("m-focus"),
     mCompletion: document.getElementById("m-completion"),
     mDistractions: document.getElementById("m-distractions"),
-    mPer: document.getElementById("m-per"),
     dayBars: document.getElementById("day-bars"),
     topReasons: document.getElementById("top-reasons"),
     topCategories: document.getElementById("top-categories"),
@@ -44,19 +64,24 @@
     recentSessions: document.getElementById("recent-sessions"),
     btnSeed: document.getElementById("btn-seed"),
     insightBanner: document.getElementById("insight-banner"),
+    insightKicker: document.getElementById("insight-kicker"),
     insightHeadline: document.getElementById("insight-headline"),
     insightBody: document.getElementById("insight-body"),
-    pulseStreak: document.getElementById("pulse-streak"),
-    pulseAllFocus: document.getElementById("pulse-all-focus"),
-    pulseAllDistract: document.getElementById("pulse-all-distract"),
+    allTime: document.getElementById("all-time"),
     quickChips: document.getElementById("quick-chips"),
   };
 
+  const IDLE_LINE = "Protect a block. Log what pulls you away. See your week.";
+
   let activeSession = null;
   let tickTimer = null;
+  let toastTimer = null;
   let weeksAgo = 0;
+  let overviewCache = null;
 
   els.ringProgress.style.strokeDasharray = String(CIRC);
+
+  /* ——— helpers ——— */
 
   function formatDuration(seconds) {
     const s = Math.max(0, Math.floor(seconds || 0));
@@ -78,6 +103,11 @@
     return CATEGORY_LABELS[key] || String(key || "other").replaceAll("_", " ");
   }
 
+  function guessCategory(reason) {
+    const hit = CATEGORY_HINTS.find(([, re]) => re.test(reason));
+    return hit ? hit[0] : "other";
+  }
+
   function escapeHtml(value) {
     return String(value)
       .replaceAll("&", "&amp;")
@@ -86,19 +116,34 @@
       .replaceAll('"', "&quot;");
   }
 
-  function showToast(message) {
+  function plural(n, one, many) {
+    return `${n} ${n === 1 ? one : many}`;
+  }
+
+  function showToast(message, isError = false) {
+    clearTimeout(toastTimer);
     els.toast.textContent = message;
+    els.toast.classList.toggle("error", isError);
     els.toast.classList.remove("hidden", "show");
     void els.toast.offsetWidth;
     els.toast.classList.add("show");
-    setTimeout(() => els.toast.classList.add("hidden"), 2400);
+    toastTimer = setTimeout(() => els.toast.classList.add("hidden"), isError ? 4000 : 2200);
+  }
+
+  function fail(err) {
+    showToast(err && err.message ? err.message : "Something went wrong. Try again.", true);
   }
 
   async function api(path, options = {}) {
-    const res = await fetch(path, {
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-      ...options,
-    });
+    let res;
+    try {
+      res = await fetch(path, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        ...options,
+      });
+    } catch {
+      throw new Error("Can't reach the server. Check your connection.");
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const detail = data.detail;
@@ -107,19 +152,45 @@
     return data;
   }
 
-  function setIdleUI(presetMinutes = 25) {
+  function setLoopStep(current) {
+    const order = ["protect", "log", "read"];
+    const idx = order.indexOf(current);
+    els.loopTrack.querySelectorAll("li").forEach((li) => {
+      const i = order.indexOf(li.dataset.step);
+      li.classList.toggle("is-current", i === idx);
+      li.classList.toggle("is-done", i < idx);
+    });
+  }
+
+  function syncPresets() {
+    const m = String(Number(els.minutes.value) || "");
+    els.presets.forEach((btn) => {
+      const on = btn.dataset.minutes === m;
+      btn.classList.toggle("is-on", on);
+      btn.setAttribute("aria-pressed", String(on));
+    });
+  }
+
+  /* ——— timer UI ——— */
+
+  function setIdleUI() {
     activeSession = null;
     clearInterval(tickTimer);
     tickTimer = null;
+    document.title = BASE_TITLE;
     els.ringWrap.dataset.state = "idle";
     els.kind.textContent = "Ready";
-    els.digits.textContent = formatClock(presetMinutes * 60);
-    els.label.textContent = "Set a block. Protect it.";
-    els.heroStatus.textContent =
-      "Timers count minutes. Focus Log ranks interruptions — so you can change the environment, not just the willpower.";
+    els.digits.textContent = formatClock((Number(els.minutes.value) || 25) * 60);
+    els.label.textContent = "One job. A clear end.";
+    els.heroStatus.textContent = IDLE_LINE;
     els.ringProgress.style.strokeDashoffset = "0";
     els.startForm.classList.remove("hidden");
     els.activeActions.classList.add("hidden");
+    els.btnDone.classList.remove("ready");
+    els.pullCard.classList.remove("is-live");
+    els.pullSub.innerHTML = "Tap what it was. One tap logs it. <kbd>/</kbd> jumps here.";
+    els.pullCount.classList.add("hidden");
+    setLoopStep("protect");
   }
 
   function renderActive() {
@@ -134,21 +205,48 @@
     els.ringWrap.dataset.state = isBreak ? "break" : "active";
     els.kind.textContent = isBreak ? "Break" : "Focus";
     els.digits.textContent = formatClock(left);
-    els.label.textContent = activeSession.label || (isBreak ? "Rest well" : "Stay with it");
-    els.heroStatus.textContent = isBreak
-      ? "Break in progress — step away cleanly, come back sharper."
-      : "Session live. When attention slips, log it — don’t pretend it didn’t.";
+    els.label.textContent = activeSession.label || (isBreak ? "Step away" : "Stay with it");
     els.ringProgress.style.strokeDashoffset = String(CIRC * progress);
     els.startForm.classList.add("hidden");
     els.activeActions.classList.remove("hidden");
+    els.btnDone.textContent = isBreak ? "End break" : "Finish block";
+    els.btnAbort.classList.toggle("hidden", isBreak);
+    document.title = `${formatClock(left)} · ${isBreak ? "Break" : "Focus"} — Focus Log`;
+
+    if (isBreak) {
+      els.heroStatus.textContent = "Break time. Step away, then come back.";
+      els.pullCard.classList.remove("is-live");
+      setLoopStep("protect");
+    } else {
+      els.heroStatus.textContent = "Block running. If something pulls you away, tap it below.";
+      els.pullCard.classList.add("is-live");
+      els.pullSub.textContent = "Tap what pulled you away. It takes one tap.";
+      setLoopStep("log");
+      renderPullCount();
+    }
 
     if (left <= 0) {
       clearInterval(tickTimer);
       tickTimer = null;
-      els.kind.textContent = "Done";
+      els.kind.textContent = "Time";
       els.digits.textContent = "00:00";
-      els.label.textContent = "Complete the session to save it.";
+      els.label.textContent = isBreak ? "Break over." : "Time’s up. Finish to save it.";
+      els.btnDone.classList.add("ready");
+      document.title = "Time’s up — Focus Log";
     }
+  }
+
+  function renderPullCount() {
+    if (!activeSession || activeSession.kind === "break" || !overviewCache) {
+      els.pullCount.classList.add("hidden");
+      return;
+    }
+    const startedAt = new Date(activeSession.started_at).getTime();
+    const n = (overviewCache.recent_distractions || []).filter(
+      (d) => new Date(d.logged_at).getTime() >= startedAt
+    ).length;
+    els.pullCount.textContent = n ? `${plural(n, "pull", "pulls")} logged this block` : "";
+    els.pullCount.classList.toggle("hidden", !n);
   }
 
   function startTicker() {
@@ -157,27 +255,53 @@
     tickTimer = setInterval(renderActive, 250);
   }
 
+  /* ——— render data ——— */
+
   function renderInsight(insight) {
     if (!insight) return;
-    els.insightBanner.dataset.tone = insight.tone || "idle";
+    const tone = insight.tone || insight.severity || "idle";
+    els.insightBanner.dataset.tone = tone;
+    els.insightKicker.textContent =
+      { coach: "Fix this first", win: "Nice work", idle: "Start here" }[tone] || "This week";
     els.insightHeadline.textContent = insight.headline;
     els.insightBody.textContent = insight.body;
   }
 
-  function renderPulse(overview) {
-    els.pulseStreak.textContent = String(overview.streak_days || 0);
-    els.pulseAllFocus.textContent = formatDuration((overview.all_time || {}).focus_seconds);
-    els.pulseAllDistract.textContent = String((overview.all_time || {}).distractions || 0);
+  function renderAllTime(overview) {
+    const a = overview.all_time || {};
+    if (!a.sessions && !a.distractions) {
+      els.allTime.hidden = true;
+      return;
+    }
+    const parts = [];
+    if (overview.streak_days) parts.push(`${plural(overview.streak_days, "day", "days")} in a row`);
+    parts.push(`${formatDuration(a.focus_seconds)} focused all time`);
+    parts.push(`${plural(a.distractions || 0, "pull", "pulls")} logged`);
+    els.allTime.textContent = parts.join(" · ");
+    els.allTime.hidden = false;
   }
 
   function renderReport(report) {
     const t = report.totals;
-    els.weekRange.textContent = `${report.week_start} → ${report.week_end}`;
+    const empty = !t.sessions && !t.distractions;
+    const hasAnyData = Boolean(overviewCache && (overviewCache.all_time.sessions || overviewCache.all_time.distractions));
+
+    els.weekRange.textContent = formatWeekRange(report.week_start, report.week_end, weeksAgo);
     els.weekNext.disabled = weeksAgo <= 0;
+    els.weekPrev.disabled = false;
+    els.weekBody.classList.toggle("is-empty", empty);
+    els.emptyWeek.classList.toggle("hidden", !empty);
+    // Demo seeding only works on a fully empty log, so only offer it then.
+    els.btnSeed.classList.toggle("hidden", hasAnyData);
+    if (empty) {
+      els.emptyWeek.querySelector("p").innerHTML = weeksAgo
+        ? "<strong>Nothing logged this week.</strong> Use ← → to find a week with data."
+        : "<strong>No data yet.</strong> Run one focus block and log a pull or two, and your week fills in here.";
+    }
+
     els.mFocus.textContent = formatDuration(t.focus_seconds);
-    els.mCompletion.textContent = `${t.completion_rate}%`;
+    els.mCompletion.textContent = t.sessions ? `${t.completed}/${t.sessions}` : "—";
     els.mDistractions.textContent = String(t.distractions);
-    els.mPer.textContent = String(t.distractions_per_session);
 
     const maxFocus = Math.max(1, ...report.day_series.map((d) => d.focus_seconds));
     const maxDistract = Math.max(1, ...report.day_series.map((d) => d.distractions));
@@ -185,45 +309,43 @@
     els.dayBars.innerHTML = report.day_series
       .map((d, i) => {
         const fh = Math.max(d.focus_seconds ? 8 : 2, Math.round((d.focus_seconds / maxFocus) * 100));
-        const dh = d.distractions
-          ? Math.max(6, Math.round((d.distractions / maxDistract) * 28))
-          : 0;
+        const dh = d.distractions ? Math.max(6, Math.round((d.distractions / maxDistract) * 28)) : 0;
         return `
-          <div class="bar-col" title="${d.day}: ${formatDuration(d.focus_seconds)} focus, ${d.distractions} distractions">
+          <div class="bar-col" title="${escapeHtml(d.day)}: ${formatDuration(d.focus_seconds)} focus, ${plural(d.distractions, "pull", "pulls")}">
             <div class="bar-stack">
               <div class="bar distract" style="height:${dh}px; animation-delay:${i * 40}ms"></div>
               <div class="bar focus" style="height:${fh}px; animation-delay:${i * 40 + 40}ms"></div>
             </div>
-            <span class="bar-day">${d.weekday}</span>
+            <span class="bar-day">${escapeHtml(d.weekday)}</span>
           </div>`;
       })
       .join("");
 
     if (!report.top_reasons.length) {
-      els.topReasons.innerHTML = `<li class="empty" style="display:block;border:0">No distractions logged. Rare air.</li>`;
+      els.topReasons.innerHTML = `<li class="empty" style="display:block;border:0">No pulls logged yet. Tap one above when focus breaks.</li>`;
     } else {
       els.topReasons.innerHTML = report.top_reasons
-        .slice(0, 6)
+        .slice(0, 5)
         .map(
           (r, i) => `
           <li style="animation-delay:${i * 50}ms">
             <span class="n">${i + 1}</span>
-            <span>${escapeHtml(r.reason)} <span class="meta">${categoryLabel(r.category)}</span></span>
+            <span>${escapeHtml(r.reason)} <span class="meta">${escapeHtml(categoryLabel(r.category))}</span></span>
             <span class="meta">${r.count}×</span>
           </li>`
         )
         .join("");
     }
 
-    const maxCat = Math.max(1, ...(report.top_categories.map((c) => c.count) || [1]));
+    const maxCat = Math.max(1, ...report.top_categories.map((c) => c.count));
     if (!report.top_categories.length) {
-      els.topCategories.innerHTML = `<p class="empty">Categories will appear as you log pulls.</p>`;
+      els.topCategories.innerHTML = `<p class="empty">Categories appear as you log pulls.</p>`;
     } else {
       els.topCategories.innerHTML = report.top_categories
         .map(
           (c, i) => `
           <div class="cat-row">
-            <span>${categoryLabel(c.category)}</span>
+            <span>${escapeHtml(categoryLabel(c.category))}</span>
             <div class="cat-track"><div class="cat-fill" style="width:${Math.round((c.count / maxCat) * 100)}%; animation-delay:${i * 60}ms"></div></div>
             <span class="count">${c.count}</span>
           </div>`
@@ -232,122 +354,146 @@
     }
 
     const recent = (report.recent_distractions || []).slice(0, 8);
-    if (!recent.length) {
-      els.recent.innerHTML = `<li class="empty" style="display:block;border:0">Nothing logged this week yet.</li>`;
-    } else {
-      els.recent.innerHTML = recent
-        .map((d) => {
-          const when = new Date(d.logged_at);
-          const stamp = when.toLocaleString(undefined, {
-            weekday: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          return `
+    els.recent.innerHTML = recent.length
+      ? recent
+          .map(
+            (d) => `
             <li>
-              <span>${escapeHtml(d.reason)} <span class="meta">${categoryLabel(d.category)}</span></span>
-              <span class="meta">${stamp}</span>
-            </li>`;
-        })
-        .join("");
-    }
+              <span>${escapeHtml(d.reason)} <span class="meta">${escapeHtml(categoryLabel(d.category))}</span></span>
+              <span class="meta">${formatStamp(d.logged_at)}</span>
+            </li>`
+          )
+          .join("")
+      : `<li class="empty" style="display:block;border:0">Nothing logged this week yet.</li>`;
 
     const sessions = (report.recent_sessions || []).filter((s) => s.kind === "focus").slice(0, 6);
-    if (!sessions.length) {
-      els.recentSessions.innerHTML = `<li class="empty" style="display:block;border:0">No sessions this week yet.</li>`;
-    } else {
-      els.recentSessions.innerHTML = sessions
-        .map((s) => {
-          const stamp = new Date(s.started_at).toLocaleString(undefined, {
-            weekday: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          return `
+    els.recentSessions.innerHTML = sessions.length
+      ? sessions
+          .map(
+            (s) => `
             <li>
-              <span>${escapeHtml(s.label || "Focus")} <span class="meta">${s.status} · ${formatDuration(s.focus_seconds)}</span></span>
-              <span class="meta">${stamp}</span>
-            </li>`;
-        })
-        .join("");
-    }
+              <span>${escapeHtml(s.label || "Focus")} <span class="meta">${escapeHtml(s.status)} · ${formatDuration(s.focus_seconds)}</span></span>
+              <span class="meta">${formatStamp(s.started_at)}</span>
+            </li>`
+          )
+          .join("")
+      : `<li class="empty" style="display:block;border:0">No blocks this week yet.</li>`;
   }
+
+  function formatStamp(iso) {
+    return new Date(iso).toLocaleString(undefined, {
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function formatWeekRange(startIso, endIso, ago) {
+    const fmt = (iso) =>
+      new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const range = `${fmt(startIso)} – ${fmt(endIso)}`;
+    return ago === 0 ? `This week · ${range}` : range;
+  }
+
+  /* ——— data flow ——— */
 
   async function refresh() {
     const overview = await api("/api/overview");
+    overviewCache = overview;
     activeSession = overview.active_session;
     if (activeSession) startTicker();
-    else setIdleUI(Number(els.minutes.value) || 25);
+    else setIdleUI();
 
     renderInsight(overview.insight);
-    renderPulse(overview);
+    renderAllTime(overview);
 
     const report = weeksAgo === 0 ? overview.week : await api(`/api/report?weeks_ago=${weeksAgo}`);
     renderReport(report);
   }
 
+  async function loadWeek(delta) {
+    const target = Math.max(0, weeksAgo + delta);
+    if (target === weeksAgo) return;
+    try {
+      const report = target === 0 && overviewCache ? overviewCache.week : await api(`/api/report?weeks_ago=${target}`);
+      weeksAgo = target;
+      renderReport(report);
+    } catch (err) {
+      fail(err);
+    }
+  }
+
   async function logDistraction(reason, category) {
     const clean = String(reason || "").trim();
     if (!clean) return;
+    const resolved = category || guessCategory(clean);
     await api("/api/distract", {
       method: "POST",
-      body: JSON.stringify({ reason: clean, category: category || "other" }),
+      body: JSON.stringify({ reason: clean, category: resolved }),
     });
     els.reason.value = "";
-    showToast(`Logged: ${clean}`);
+    els.category.value = "";
+    showToast(`Logged: ${clean} · ${categoryLabel(resolved)}`);
     await refresh();
   }
 
+  async function startSession(payload, message) {
+    const data = await api("/api/session/start", { method: "POST", body: JSON.stringify(payload) });
+    activeSession = data.session;
+    startTicker();
+    showToast(message);
+    // Prime the pull counter without blocking the UI.
+    refresh().catch(() => {});
+  }
+
+  /* ——— events ——— */
+
   els.startForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    const minutes = Math.min(180, Math.max(1, Number(els.minutes.value) || 25));
+    els.minutes.value = String(minutes);
+    els.btnStart.disabled = true;
     try {
-      const data = await api("/api/session/start", {
-        method: "POST",
-        body: JSON.stringify({
-          minutes: Number(els.minutes.value) || 25,
-          label: els.workLabel.value.trim(),
-          kind: "focus",
-        }),
-      });
-      activeSession = data.session;
-      startTicker();
-      showToast("Focus session started");
+      await startSession(
+        { minutes, label: els.workLabel.value.trim(), kind: "focus" },
+        `Focus block started · ${minutes} min`
+      );
     } catch (err) {
-      showToast(err.message);
+      fail(err);
+    } finally {
+      els.btnStart.disabled = false;
     }
   });
 
   els.btnBreak.addEventListener("click", async () => {
     try {
-      const data = await api("/api/session/start", {
-        method: "POST",
-        body: JSON.stringify({ minutes: 5, label: "Break", kind: "break" }),
-      });
-      activeSession = data.session;
-      startTicker();
-      showToast("Break started");
+      await startSession({ minutes: 5, label: "Break", kind: "break" }, "5 minute break started");
     } catch (err) {
-      showToast(err.message);
+      fail(err);
     }
   });
 
   els.btnDone.addEventListener("click", async () => {
+    const wasBreak = activeSession && activeSession.kind === "break";
     try {
       await api("/api/session/done", { method: "POST", body: "{}" });
-      showToast("Session completed");
+      weeksAgo = 0;
       await refresh();
+      showToast(wasBreak ? "Break ended" : "Block saved. Take a 5m break when you're ready.");
     } catch (err) {
-      showToast(err.message);
+      fail(err);
     }
   });
 
   els.btnAbort.addEventListener("click", async () => {
+    if (!window.confirm("Stop this block early? It will be saved as stopped.")) return;
     try {
       await api("/api/session/abort", { method: "POST", body: "{}" });
-      showToast("Session aborted");
+      weeksAgo = 0;
       await refresh();
+      showToast("Block stopped");
     } catch (err) {
-      showToast(err.message);
+      fail(err);
     }
   });
 
@@ -355,47 +501,50 @@
     e.preventDefault();
     try {
       await logDistraction(els.reason.value, els.category.value);
+      els.reason.focus();
     } catch (err) {
-      showToast(err.message);
+      fail(err);
     }
   });
 
   els.quickChips.addEventListener("click", async (e) => {
     const btn = e.target.closest("button[data-reason]");
     if (!btn) return;
+    btn.disabled = true;
     try {
-      els.category.value = btn.dataset.category || "other";
       await logDistraction(btn.dataset.reason, btn.dataset.category);
     } catch (err) {
-      showToast(err.message);
+      fail(err);
+    } finally {
+      btn.disabled = false;
     }
   });
 
-  els.weekPrev.addEventListener("click", async () => {
-    weeksAgo += 1;
-    const report = await api(`/api/report?weeks_ago=${weeksAgo}`);
-    renderReport(report);
-  });
-
-  els.weekNext.addEventListener("click", async () => {
-    if (weeksAgo <= 0) return;
-    weeksAgo -= 1;
-    const report = await api(`/api/report?weeks_ago=${weeksAgo}`);
-    renderReport(report);
-  });
+  els.weekPrev.addEventListener("click", () => loadWeek(1));
+  els.weekNext.addEventListener("click", () => loadWeek(-1));
 
   els.btnSeed.addEventListener("click", async () => {
-    await api("/api/seed", { method: "POST", body: "{}" });
-    showToast("Demo week loaded (if DB was empty)");
-    weeksAgo = 0;
-    await refresh();
+    try {
+      await api("/api/seed", { method: "POST", body: "{}" });
+      weeksAgo = 0;
+      await refresh();
+      showToast("Demo week loaded. Your own data will replace it as you log.");
+    } catch (err) {
+      fail(err);
+    }
+  });
+
+  els.presets.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      els.minutes.value = btn.dataset.minutes;
+      syncPresets();
+      if (!activeSession) els.digits.textContent = formatClock(Number(btn.dataset.minutes) * 60);
+    });
   });
 
   els.minutes.addEventListener("input", () => {
-    if (!activeSession) {
-      const m = Number(els.minutes.value) || 25;
-      els.digits.textContent = formatClock(m * 60);
-    }
+    syncPresets();
+    if (!activeSession) els.digits.textContent = formatClock((Number(els.minutes.value) || 25) * 60);
   });
 
   document.addEventListener("keydown", (e) => {
@@ -403,11 +552,12 @@
       const tag = (e.target && e.target.tagName) || "";
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       e.preventDefault();
-      els.reason.focus();
-      document.getElementById("distract-section").scrollIntoView({ behavior: "smooth", block: "center" });
+      els.pullCard.scrollIntoView({ behavior: "smooth", block: "center" });
+      els.reason.focus({ preventScroll: true });
     }
   });
 
   setIdleUI();
-  refresh().catch((err) => showToast(err.message));
+  syncPresets();
+  refresh().catch(fail);
 })();

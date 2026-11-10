@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Open-source project docs: contributing guide, code of conduct, security policy, changelog
 - GitHub issue and pull request templates
 
+### Changed
+
+- Dashboard UX pass: one-screen hero with timer, 15/25/50 presets and a single "Start focus block" CTA
+- "Got pulled away?" card sits next to the timer: one-tap chips, Enter-to-log, auto-categorising
+- Calmer "This week" view: three headline numbers, top pulls, by-day chart; extra detail folded away
+- First-run empty states, loop progress indicator, live countdown in the tab title, mobile and accessibility fixes
+
 ## [1.1.0] — 2026-11-10
 
 ### Added
