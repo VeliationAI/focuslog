@@ -52,7 +52,7 @@ Homepage = "https://github.com/VeliationAI/focuslog"
 Repository = "https://github.com/VeliationAI/focuslog"
 Issues = "https://github.com/VeliationAI/focuslog/issues"
 Changelog = "https://github.com/VeliationAI/focuslog/blob/main/CHANGELOG.md"
-"Live Demo" = "https://focuslog-xu9t.onrender.com"
+"Live Demo" = "https://focuslog-wd2q.onrender.com"
 
 [tool.setuptools.packages.find]
 include = ["focuslog*"]
