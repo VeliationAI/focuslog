@@ -6,8 +6,15 @@ Everyone takes notes. Nobody extracts the actions. This does.
 
 Built by [Veliation AI](https://github.com/VeliationAI).
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-minutes--to--actions.onrender.com-E8A838?style=flat-square)](https://minutes-to-actions.onrender.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-amber.svg)](https://www.python.org/downloads/)
+
+## Live app
+
+**Try it now (public):** [https://minutes-to-actions.onrender.com](https://minutes-to-actions.onrender.com/)
+
+Hosted on [Render](https://render.com). No install required — paste a transcript and extract actions. Free instances may sleep after idle; the first load can take ~30s.
 
 ## Product loop
 
