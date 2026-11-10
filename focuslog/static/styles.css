@@ -337,16 +337,44 @@ main {
   background: var(--focus-dim);
 }
 
-.preset-custom {
-  flex: 1.3;
+.custom-minutes {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.75rem;
+  width: 100%;
   color: var(--muted);
+  font-size: 0.9rem;
 }
 
-.preset-custom input { text-align: center; min-height: 44px; padding: 0.5rem 0.4rem; }
-.preset-custom em { font-style: normal; font-size: 0.82rem; }
+.custom-minutes input { max-width: 7rem; text-align: center; font-size: 1rem; }
+
+.start-extras {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  width: 100%;
+}
+
+.label-wrap { width: 100%; }
+
+.link-btn {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0.65rem 0.1rem;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(231, 242, 236, 0.2);
+  text-underline-offset: 4px;
+  transition: color 0.2s ease;
+}
+
+.link-btn:hover { color: var(--ink); }
+.link-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { display: none; }
@@ -378,7 +406,6 @@ select:focus {
   box-shadow: 0 0 0 3px var(--focus-dim);
 }
 
-.cta-row,
 .active-actions {
   display: flex;
   gap: 0.65rem;
@@ -443,9 +470,9 @@ select:focus {
 }
 
 .btn.big {
-  flex: 1;
-  min-height: 50px;
-  font-size: 1.02rem;
+  flex: 1 1 100%;
+  min-height: 56px;
+  font-size: 1.1rem;
   font-weight: 600;
   box-shadow: 0 0 0 0 rgba(61, 220, 151, 0.4);
 }
@@ -493,15 +520,23 @@ a:focus-visible {
   box-shadow: 0 0 0 3px var(--coral-dim);
 }
 
+.pull-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+}
+
 .pull-head h2 {
-  margin: 0 0 0.2rem;
+  margin: 0;
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.45rem;
   font-weight: 500;
 }
 
-.pull-head p {
-  margin: 0;
+.pull-sub {
+  margin: -0.45rem 0 0;
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 300;
@@ -509,30 +544,34 @@ a:focus-visible {
 
 .distract-form {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   gap: 0.5rem;
 }
 
-.distract-form select { width: auto; max-width: 9.5rem; }
+.distract-form input,
+.distract-form .btn { min-height: 48px; }
 
 .quick-chips {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
 }
 
 .quick-chips button {
   appearance: none;
-  border: 1px solid rgba(255, 107, 74, 0.28);
-  background: transparent;
+  border: 1px solid rgba(255, 107, 74, 0.35);
+  background: rgba(255, 107, 74, 0.05);
   color: var(--ink);
-  padding: 0.5rem 0.9rem;
-  min-height: 40px;
+  padding: 0.5rem 0.6rem;
+  min-height: 52px;
   border-radius: var(--radius);
   cursor: pointer;
   font: inherit;
-  font-size: 0.92rem;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s var(--ease);
+  font-size: 1rem;
+  font-weight: 500;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s var(--ease);
 }
 
 .quick-chips button:hover {
@@ -540,13 +579,38 @@ a:focus-visible {
   border-color: rgba(255, 107, 74, 0.65);
 }
 
-.quick-chips button:active { transform: scale(0.96); }
+.quick-chips button:active { transform: scale(0.95); background: rgba(255, 107, 74, 0.3); }
+
+.quick-chips button.is-hit { animation: hit 0.5s var(--ease); }
+
+@keyframes hit {
+  0% { background: var(--coral); color: #1a0905; transform: scale(0.96); }
+  100% { background: rgba(255, 107, 74, 0.05); color: var(--ink); transform: scale(1); }
+}
 
 .pull-count {
   margin: 0;
+  padding: 0.15rem 0.6rem;
+  border-radius: 99px;
+  background: var(--coral-dim);
   color: var(--coral);
-  font-size: 0.88rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
+
+/* While a block runs: timer + pull buttons are the whole screen. */
+body[data-mode="focus"] .loop-track,
+body[data-mode="break"] .loop-track { display: none; }
+
+body[data-mode="focus"] .brand-hero,
+body[data-mode="break"] .brand-hero { font-size: clamp(2.2rem, 5vw, 3.2rem); }
+
+body[data-mode="focus"] .pull-card { box-shadow: 0 0 0 3px var(--coral-dim); }
+
+body[data-mode="idle"] .pull-card { opacity: 0.88; }
+
+.hero-line a { color: var(--focus); white-space: nowrap; }
 
 kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -645,14 +709,28 @@ kbd {
 .empty-week p { margin: 0; max-width: 50ch; }
 .empty-week strong { color: var(--ink); font-weight: 500; }
 
-.week-body.is-empty .metric-value,
-.week-body.is-empty .bars { opacity: 0.45; }
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.empty-week .btn,
+.empty-week a.btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
 
 .more { margin-top: 2rem; border-top: 1px solid var(--line); }
 
 .more summary {
   cursor: pointer;
-  padding: 0.9rem 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
   color: var(--muted);
   font-size: 0.9rem;
   list-style: none;
@@ -989,11 +1067,32 @@ kbd {
   .loop-track { font-size: 0.82rem; gap: 0.4rem 0.9rem; }
   .metric-row { gap: 0.5rem; }
   .metric-label { font-size: 0.78rem; }
-  .distract-form { grid-template-columns: 1fr auto; }
-  .distract-form select { grid-column: 1 / -1; grid-row: 2; max-width: none; width: 100%; }
-  .section-head { align-items: flex-start; }
+  .section-head { align-items: center; }
   .cat-row { grid-template-columns: 6rem 1fr auto; }
   .footer { align-items: flex-start; }
+  .pull-card { padding: 1rem; }
+  .empty-actions { width: 100%; }
+  .empty-actions .btn { flex: 1; justify-content: center; }
+  .hero { padding-bottom: 2rem; }
+
+  /* Running on a phone: timer, finish, and pull buttons fit one screen. */
+  body[data-mode="focus"] .hero,
+  body[data-mode="break"] .hero { row-gap: 1rem; padding-top: 0.75rem; }
+  body[data-mode="focus"] .hero-brand,
+  body[data-mode="break"] .hero-brand { display: none; }
+  body[data-mode="focus"] .ring-wrap,
+  body[data-mode="break"] .ring-wrap { width: min(190px, 52vw); }
+  body[data-mode="focus"] .timer-stage,
+  body[data-mode="break"] .timer-stage { gap: 1rem; }
+}
+
+/* Touch: every control is at least 44px and the shortcut hint is hidden. */
+@media (pointer: coarse) {
+  .btn.compact { min-height: 44px; min-width: 44px; }
+  .nav a { display: inline-flex; align-items: center; min-height: 44px; }
+  kbd { display: none; }
+  input[type="text"],
+  input[type="number"] { font-size: 1rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -26,15 +26,15 @@
   </header>
 
   <main id="top">
-    <section class="hero" aria-label="Focus timer">
+    <section class="hero" id="hero" aria-label="Focus timer">
       <div class="hero-brand">
         <h1 class="brand-hero">Focus Log</h1>
-        <p class="hero-line" id="hero-status">Protect a block. Log what pulls you away. See your week.</p>
+        <p class="hero-line" id="hero-status">A focus timer that shows what keeps breaking your focus.</p>
 
         <ol class="loop-track" id="loop-track" aria-label="How Focus Log works">
-          <li data-step="protect" class="is-current"><span>1</span> Protect a block</li>
-          <li data-step="log"><span>2</span> Log the pull</li>
-          <li data-step="read"><span>3</span> Read the week</li>
+          <li data-step="protect" class="is-current"><span>1</span> Start a block</li>
+          <li data-step="log"><span>2</span> Tap each pull</li>
+          <li data-step="read"><span>3</span> See your week</li>
         </ol>
       </div>
 
@@ -47,25 +47,31 @@
           <div class="timer-core" role="timer" aria-live="off">
             <p class="timer-kind" id="timer-kind">Ready</p>
             <p class="timer-digits" id="timer-digits">25:00</p>
-            <p class="timer-label" id="timer-label">One job. A clear end.</p>
+            <p class="timer-label" id="timer-label">Press start when ready</p>
           </div>
         </div>
 
         <form class="start-form" id="start-form">
-          <div class="presets" role="group" aria-label="Block length">
-            <button type="button" class="preset" data-minutes="15">15</button>
-            <button type="button" class="preset is-on" data-minutes="25" aria-pressed="true">25</button>
-            <button type="button" class="preset" data-minutes="50">50</button>
-            <label class="preset-custom">
-              <span class="sr-only">Custom minutes</span>
-              <input type="number" id="minutes" name="minutes" min="1" max="180" value="25" inputmode="numeric" aria-label="Minutes" />
-              <em>min</em>
-            </label>
+          <div class="presets" role="group" aria-label="Block length in minutes">
+            <button type="button" class="preset" data-minutes="15">15 min</button>
+            <button type="button" class="preset is-on" data-minutes="25" aria-pressed="true">25 min</button>
+            <button type="button" class="preset" data-minutes="50">50 min</button>
+            <button type="button" class="preset" id="preset-custom" aria-expanded="false" aria-controls="custom-wrap">Custom</button>
           </div>
-          <input type="text" id="label" name="label" placeholder="What are you working on? (optional)" maxlength="120" autocomplete="off" aria-label="Working on" />
-          <div class="cta-row">
-            <button type="submit" class="btn primary big" id="btn-start">Start focus block</button>
-            <button type="button" class="btn ghost" id="btn-break" title="Start a 5 minute break">5m break</button>
+
+          <label class="custom-minutes hidden" id="custom-wrap">
+            <span>Minutes</span>
+            <input type="number" id="minutes" name="minutes" min="1" max="180" value="25" inputmode="numeric" aria-label="Custom minutes (1 to 180)" />
+          </label>
+
+          <button type="submit" class="btn primary big" id="btn-start">Start 25 min focus</button>
+
+          <div class="start-extras">
+            <button type="button" class="link-btn" id="label-toggle" aria-expanded="false" aria-controls="label-wrap">+ Name this block</button>
+            <button type="button" class="link-btn" id="btn-break" title="Start a 5 minute break">Take a 5 min break</button>
+          </div>
+          <div class="label-wrap hidden" id="label-wrap">
+            <input type="text" id="label" name="label" placeholder="What are you working on?" maxlength="120" autocomplete="off" aria-label="What are you working on (optional)" />
           </div>
         </form>
 
@@ -78,42 +84,27 @@
       <div class="pull-card" id="distract-section">
         <div class="pull-head">
           <h2>Got pulled away?</h2>
-          <p id="pull-sub">Tap what it was. One tap logs it. <kbd>/</kbd> jumps here.</p>
+          <p class="pull-count hidden" id="pull-count" aria-live="polite"></p>
         </div>
-        <div class="quick-chips" id="quick-chips" aria-label="Quick log">
-          <button type="button" data-reason="Slack ping" data-category="chat">Slack</button>
+        <p class="pull-sub" id="pull-sub">Tap what it was. One tap logs it. <kbd>/</kbd> jumps here.</p>
+        <div class="quick-chips" id="quick-chips" role="group" aria-label="Quick log a pull">
+          <button type="button" data-reason="Slack ping" data-category="chat">Chat</button>
           <button type="button" data-reason="Phone unlock" data-category="phone">Phone</button>
           <button type="button" data-reason="Email check" data-category="email">Email</button>
           <button type="button" data-reason="Social scroll" data-category="social">Social</button>
-          <button type="button" data-reason="Curiosity tab" data-category="web">Web tab</button>
+          <button type="button" data-reason="Curiosity tab" data-category="web">Web</button>
           <button type="button" data-reason="Someone stopped by" data-category="people">Person</button>
         </div>
         <form class="distract-form" id="distract-form">
-          <input type="text" id="reason" name="reason" placeholder="Something else? Type it, press Enter" required maxlength="200" autocomplete="off" aria-label="What pulled you away" />
-          <select id="category" name="category" aria-label="Category">
-            <option value="" selected>Auto category</option>
-            <option value="chat">Chat / Slack</option>
-            <option value="social">Social</option>
-            <option value="email">Email</option>
-            <option value="phone">Phone</option>
-            <option value="web">Web</option>
-            <option value="meetings">Meetings</option>
-            <option value="people">People</option>
-            <option value="environment">Environment</option>
-            <option value="other">Other</option>
-          </select>
-          <button type="submit" class="btn coral">Log it</button>
+          <input type="text" id="reason" name="reason" placeholder="Something else? Type it" required maxlength="200" autocomplete="off" enterkeyhint="send" aria-label="What pulled you away" />
+          <button type="submit" class="btn coral">Log</button>
         </form>
-        <p class="pull-count hidden" id="pull-count" aria-live="polite"></p>
       </div>
     </section>
 
     <section class="analytics" id="analytics" aria-label="This week">
       <div class="section-head">
-        <div>
-          <h2>This week</h2>
-          <p class="section-sub">Where your focus went, and what broke it.</p>
-        </div>
+        <h2>This week</h2>
         <div class="week-nav">
           <button type="button" class="btn ghost compact" id="week-prev" aria-label="Previous week">←</button>
           <span id="week-range">—</span>
@@ -121,15 +112,18 @@
         </div>
       </div>
 
-      <section class="insight-banner" id="insight-banner" data-tone="idle">
-        <p class="insight-kicker" id="insight-kicker">Start here</p>
-        <h3 id="insight-headline">Start your first focus block</h3>
-        <p id="insight-body">Protect 25 minutes. When attention breaks, log what pulled you — that’s the product.</p>
+      <section class="insight-banner hidden" id="insight-banner" data-tone="idle">
+        <p class="insight-kicker" id="insight-kicker">This week</p>
+        <h3 id="insight-headline"></h3>
+        <p id="insight-body"></p>
       </section>
 
       <div class="empty-week hidden" id="empty-week">
-        <p><strong>No data yet.</strong> Run one focus block and log a pull or two, and your week fills in here.</p>
-        <button type="button" class="btn ghost" id="btn-seed">Preview with a demo week</button>
+        <p id="empty-week-text"><strong>Nothing here yet.</strong> Run one block and tap a pull or two. Your week fills in here.</p>
+        <div class="empty-actions">
+          <a class="btn primary compact" href="#top" id="empty-start">Start a block</a>
+          <button type="button" class="btn ghost compact" id="btn-seed">Preview with demo data</button>
+        </div>
       </div>
 
       <div class="week-body" id="week-body">
@@ -140,11 +134,11 @@
           </div>
           <div class="metric">
             <span class="metric-value accent" id="m-distractions">—</span>
-            <span class="metric-label">Pulls logged</span>
+            <span class="metric-label">Pulls</span>
           </div>
           <div class="metric">
             <span class="metric-value" id="m-completion">—</span>
-            <span class="metric-label">Blocks finished</span>
+            <span class="metric-label">Blocks done</span>
           </div>
         </div>
 

@@ -47,7 +47,12 @@
     pullCount: document.getElementById("pull-count"),
     distractForm: document.getElementById("distract-form"),
     reason: document.getElementById("reason"),
-    category: document.getElementById("category"),
+    presetCustom: document.getElementById("preset-custom"),
+    customWrap: document.getElementById("custom-wrap"),
+    labelToggle: document.getElementById("label-toggle"),
+    labelWrap: document.getElementById("label-wrap"),
+    emptyWeekText: document.getElementById("empty-week-text"),
+    emptyStart: document.getElementById("empty-start"),
     toast: document.getElementById("toast"),
     weekRange: document.getElementById("week-range"),
     weekPrev: document.getElementById("week-prev"),
@@ -71,9 +76,13 @@
     quickChips: document.getElementById("quick-chips"),
   };
 
-  const IDLE_LINE = "Protect a block. Log what pulls you away. See your week.";
+  const IDLE_LINE = "A focus timer that shows what keeps breaking your focus.";
+  const IDLE_PULL_HINT = "Tap what it was. One tap logs it. <kbd>/</kbd> jumps here.";
+  const PRESET_MINUTES = ["15", "25", "50"];
 
   let activeSession = null;
+  let blockPulls = 0;
+  let afterBlockLine = "";
   let tickTimer = null;
   let toastTimer = null;
   let weeksAgo = 0;
@@ -162,13 +171,34 @@
     });
   }
 
+  function currentMinutes() {
+    return Math.min(180, Math.max(1, Number(els.minutes.value) || 25));
+  }
+
+  function setCustomOpen(open) {
+    els.customWrap.classList.toggle("hidden", !open);
+    els.presetCustom.setAttribute("aria-expanded", String(open));
+  }
+
   function syncPresets() {
     const m = String(Number(els.minutes.value) || "");
+    const isPreset = PRESET_MINUTES.includes(m);
     els.presets.forEach((btn) => {
+      if (!btn.dataset.minutes) return;
       const on = btn.dataset.minutes === m;
       btn.classList.toggle("is-on", on);
       btn.setAttribute("aria-pressed", String(on));
     });
+    const customOpen = !els.customWrap.classList.contains("hidden");
+    els.presetCustom.classList.toggle("is-on", customOpen || !isPreset);
+    els.btnStart.textContent = `Start ${currentMinutes()} min focus`;
+    if (!activeSession) els.digits.textContent = formatClock(currentMinutes() * 60);
+  }
+
+  function setLabelOpen(open) {
+    els.labelWrap.classList.toggle("hidden", !open);
+    els.labelToggle.setAttribute("aria-expanded", String(open));
+    els.labelToggle.textContent = open ? "− Hide name" : "+ Name this block";
   }
 
   /* ——— timer UI ——— */
@@ -178,18 +208,25 @@
     clearInterval(tickTimer);
     tickTimer = null;
     document.title = BASE_TITLE;
+    document.body.dataset.mode = "idle";
     els.ringWrap.dataset.state = "idle";
     els.kind.textContent = "Ready";
-    els.digits.textContent = formatClock((Number(els.minutes.value) || 25) * 60);
-    els.label.textContent = "One job. A clear end.";
-    els.heroStatus.textContent = IDLE_LINE;
+    els.digits.textContent = formatClock(currentMinutes() * 60);
+    els.label.textContent = "Press start when ready";
+    if (afterBlockLine) {
+      els.heroStatus.innerHTML = `${escapeHtml(afterBlockLine)} <a href="#analytics">See your week ↓</a>`;
+      afterBlockLine = "";
+    } else {
+      els.heroStatus.textContent = IDLE_LINE;
+    }
     els.ringProgress.style.strokeDashoffset = "0";
     els.startForm.classList.remove("hidden");
     els.activeActions.classList.add("hidden");
     els.btnDone.classList.remove("ready");
     els.pullCard.classList.remove("is-live");
-    els.pullSub.innerHTML = "Tap what it was. One tap logs it. <kbd>/</kbd> jumps here.";
+    els.pullSub.innerHTML = IDLE_PULL_HINT;
     els.pullCount.classList.add("hidden");
+    els.btnStart.textContent = `Start ${currentMinutes()} min focus`;
     setLoopStep("protect");
   }
 
@@ -213,14 +250,16 @@
     els.btnAbort.classList.toggle("hidden", isBreak);
     document.title = `${formatClock(left)} · ${isBreak ? "Break" : "Focus"} — Focus Log`;
 
+    document.body.dataset.mode = isBreak ? "break" : "focus";
     if (isBreak) {
       els.heroStatus.textContent = "Break time. Step away, then come back.";
       els.pullCard.classList.remove("is-live");
+      els.pullSub.innerHTML = IDLE_PULL_HINT;
       setLoopStep("protect");
     } else {
-      els.heroStatus.textContent = "Block running. If something pulls you away, tap it below.";
+      els.heroStatus.textContent = "Focus is on. If something pulls you away, tap it below.";
       els.pullCard.classList.add("is-live");
-      els.pullSub.textContent = "Tap what pulled you away. It takes one tap.";
+      els.pullSub.textContent = "Tap what pulled you away.";
       setLoopStep("log");
       renderPullCount();
     }
@@ -237,16 +276,29 @@
   }
 
   function renderPullCount() {
-    if (!activeSession || activeSession.kind === "break" || !overviewCache) {
+    if (!activeSession || activeSession.kind === "break") {
       els.pullCount.classList.add("hidden");
       return;
     }
+    els.pullCount.textContent = blockPulls
+      ? `${plural(blockPulls, "pull", "pulls")} this block`
+      : "None yet";
+    els.pullCount.classList.remove("hidden");
+  }
+
+  // Server truth for this block's pulls; runs after each refresh.
+  function syncBlockPulls() {
+    if (!activeSession || activeSession.kind === "break" || !overviewCache) {
+      blockPulls = 0;
+      return;
+    }
     const startedAt = new Date(activeSession.started_at).getTime();
-    const n = (overviewCache.recent_distractions || []).filter(
+    const serverCount = (overviewCache.recent_distractions || []).filter(
       (d) => new Date(d.logged_at).getTime() >= startedAt
     ).length;
-    els.pullCount.textContent = n ? `${plural(n, "pull", "pulls")} logged this block` : "";
-    els.pullCount.classList.toggle("hidden", !n);
+    // recent_distractions is capped, so never let a refresh lower an optimistic count.
+    blockPulls = Math.max(blockPulls, serverCount);
+    renderPullCount();
   }
 
   function startTicker() {
@@ -257,9 +309,14 @@
 
   /* ——— render data ——— */
 
-  function renderInsight(insight) {
-    if (!insight) return;
+  function renderInsight(insight, weekIsEmpty) {
+    // The empty state already says "start a block"; a second banner is just noise.
+    if (!insight || weekIsEmpty) {
+      els.insightBanner.classList.add("hidden");
+      return;
+    }
     const tone = insight.tone || insight.severity || "idle";
+    els.insightBanner.classList.remove("hidden");
     els.insightBanner.dataset.tone = tone;
     els.insightKicker.textContent =
       { coach: "Fix this first", win: "Nice work", idle: "Start here" }[tone] || "This week";
@@ -289,14 +346,18 @@
     els.weekRange.textContent = formatWeekRange(report.week_start, report.week_end, weeksAgo);
     els.weekNext.disabled = weeksAgo <= 0;
     els.weekPrev.disabled = false;
-    els.weekBody.classList.toggle("is-empty", empty);
+    // Empty weeks show one clear next step instead of a grid of dashes.
+    els.weekBody.classList.toggle("hidden", empty);
     els.emptyWeek.classList.toggle("hidden", !empty);
+    // The coach card is about the current week only.
+    renderInsight(overviewCache && overviewCache.insight, empty || weeksAgo > 0);
     // Demo seeding only works on a fully empty log, so only offer it then.
     els.btnSeed.classList.toggle("hidden", hasAnyData);
+    els.emptyStart.classList.toggle("hidden", weeksAgo > 0);
     if (empty) {
-      els.emptyWeek.querySelector("p").innerHTML = weeksAgo
-        ? "<strong>Nothing logged this week.</strong> Use ← → to find a week with data."
-        : "<strong>No data yet.</strong> Run one focus block and log a pull or two, and your week fills in here.";
+      els.emptyWeekText.innerHTML = weeksAgo
+        ? "<strong>Nothing logged that week.</strong> Use ← → to find a week with data."
+        : "<strong>Nothing here yet.</strong> Run one block and tap a pull or two. Your week fills in here.";
     }
 
     els.mFocus.textContent = formatDuration(t.focus_seconds);
@@ -322,7 +383,7 @@
       .join("");
 
     if (!report.top_reasons.length) {
-      els.topReasons.innerHTML = `<li class="empty" style="display:block;border:0">No pulls logged yet. Tap one above when focus breaks.</li>`;
+      els.topReasons.innerHTML = `<li class="empty" style="display:block;border:0">No pulls yet. Tap one above when focus breaks.</li>`;
     } else {
       els.topReasons.innerHTML = report.top_reasons
         .slice(0, 5)
@@ -404,8 +465,8 @@
     if (activeSession) startTicker();
     else setIdleUI();
 
-    renderInsight(overview.insight);
     renderAllTime(overview);
+    syncBlockPulls();
 
     const report = weeksAgo === 0 ? overview.week : await api(`/api/report?weeks_ago=${weeksAgo}`);
     renderReport(report);
@@ -427,19 +488,42 @@
     const clean = String(reason || "").trim();
     if (!clean) return;
     const resolved = category || guessCategory(clean);
-    await api("/api/distract", {
-      method: "POST",
-      body: JSON.stringify({ reason: clean, category: resolved }),
-    });
-    els.reason.value = "";
-    els.category.value = "";
-    showToast(`Logged: ${clean} · ${categoryLabel(resolved)}`);
-    await refresh();
+
+    // Optimistic: confirm instantly, then reconcile with the server.
+    const counting = Boolean(activeSession && activeSession.kind === "focus");
+    if (counting) {
+      blockPulls += 1;
+      renderPullCount();
+    }
+    showToast(`Logged · ${clean} (${categoryLabel(resolved)})`);
+    if (navigator.vibrate) navigator.vibrate(12);
+
+    try {
+      await api("/api/distract", {
+        method: "POST",
+        body: JSON.stringify({ reason: clean, category: resolved }),
+      });
+    } catch (err) {
+      if (counting) {
+        blockPulls = Math.max(0, blockPulls - 1);
+        renderPullCount();
+      }
+      throw err;
+    }
+    // Weekly numbers update in the background; the tap is already confirmed.
+    refresh().catch(() => {});
+  }
+
+  function flashButton(btn) {
+    btn.classList.remove("is-hit");
+    void btn.offsetWidth;
+    btn.classList.add("is-hit");
   }
 
   async function startSession(payload, message) {
     const data = await api("/api/session/start", { method: "POST", body: JSON.stringify(payload) });
     activeSession = data.session;
+    blockPulls = 0;
     startTicker();
     showToast(message);
     // Prime the pull counter without blocking the UI.
@@ -450,14 +534,16 @@
 
   els.startForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const minutes = Math.min(180, Math.max(1, Number(els.minutes.value) || 25));
+    const minutes = currentMinutes();
     els.minutes.value = String(minutes);
     els.btnStart.disabled = true;
     try {
       await startSession(
         { minutes, label: els.workLabel.value.trim(), kind: "focus" },
-        `Focus block started · ${minutes} min`
+        `Focus started · ${minutes} min. Tap a pull below if you drift.`
       );
+      els.workLabel.value = "";
+      setLabelOpen(false);
     } catch (err) {
       fail(err);
     } finally {
@@ -475,21 +561,27 @@
 
   els.btnDone.addEventListener("click", async () => {
     const wasBreak = activeSession && activeSession.kind === "break";
+    const pulls = blockPulls;
     try {
       await api("/api/session/done", { method: "POST", body: "{}" });
       weeksAgo = 0;
+      blockPulls = 0;
+      if (!wasBreak) {
+        afterBlockLine = pulls ? `Block saved · ${plural(pulls, "pull", "pulls")} logged.` : "Block saved · no pulls logged.";
+      }
       await refresh();
-      showToast(wasBreak ? "Break ended" : "Block saved. Take a 5m break when you're ready.");
+      showToast(wasBreak ? "Break ended" : "Block saved");
     } catch (err) {
       fail(err);
     }
   });
 
   els.btnAbort.addEventListener("click", async () => {
-    if (!window.confirm("Stop this block early? It will be saved as stopped.")) return;
+    if (!window.confirm("Stop this block early? It will still be saved.")) return;
     try {
       await api("/api/session/abort", { method: "POST", body: "{}" });
       weeksAgo = 0;
+      blockPulls = 0;
       await refresh();
       showToast("Block stopped");
     } catch (err) {
@@ -499,24 +591,27 @@
 
   els.distractForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    const text = els.reason.value;
+    if (!text.trim()) return;
+    els.reason.value = ""; // clear now so the next pull can be typed immediately
     try {
-      await logDistraction(els.reason.value, els.category.value);
-      els.reason.focus();
+      await logDistraction(text, "");
     } catch (err) {
+      els.reason.value = text;
       fail(err);
     }
+    els.reason.focus({ preventScroll: true });
   });
 
+  // Chips stay enabled so rapid repeat taps all count.
   els.quickChips.addEventListener("click", async (e) => {
     const btn = e.target.closest("button[data-reason]");
     if (!btn) return;
-    btn.disabled = true;
+    flashButton(btn);
     try {
       await logDistraction(btn.dataset.reason, btn.dataset.category);
     } catch (err) {
       fail(err);
-    } finally {
-      btn.disabled = false;
     }
   });
 
@@ -535,16 +630,30 @@
   });
 
   els.presets.forEach((btn) => {
+    if (!btn.dataset.minutes) return;
     btn.addEventListener("click", () => {
       els.minutes.value = btn.dataset.minutes;
+      setCustomOpen(false);
       syncPresets();
-      if (!activeSession) els.digits.textContent = formatClock(Number(btn.dataset.minutes) * 60);
     });
   });
 
-  els.minutes.addEventListener("input", () => {
+  els.presetCustom.addEventListener("click", () => {
+    const open = els.customWrap.classList.contains("hidden");
+    setCustomOpen(open);
     syncPresets();
-    if (!activeSession) els.digits.textContent = formatClock((Number(els.minutes.value) || 25) * 60);
+    if (open) {
+      els.minutes.focus();
+      els.minutes.select();
+    }
+  });
+
+  els.minutes.addEventListener("input", syncPresets);
+
+  els.labelToggle.addEventListener("click", () => {
+    const open = els.labelWrap.classList.contains("hidden");
+    setLabelOpen(open);
+    if (open) els.workLabel.focus();
   });
 
   document.addEventListener("keydown", (e) => {
@@ -559,5 +668,6 @@
 
   setIdleUI();
   syncPresets();
+  setLabelOpen(false);
   refresh().catch(fail);
 })();
