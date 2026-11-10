@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Open-source project docs: contributing guide, code of conduct, security policy, changelog
 - GitHub issue and pull request templates
 
+### Fixed
+
+- "By day" chart and weekly report now bucket sessions and distractions by local calendar date instead of the UTC date prefix, so evening activity no longer lands on the next day
+
 ### Changed
 
 - Dashboard UX pass: one-screen hero with timer, 15/25/50 presets and a single "Start focus block" CTA

@@ -26,6 +26,18 @@ def parse_iso(value: str) -> datetime:
     return datetime.fromisoformat(value)
 
 
+def local_date_key(value: str) -> str:
+    """Local calendar date (YYYY-MM-DD) for a stored ISO timestamp.
+
+    Timestamps are stored in UTC; bucketing on the raw string prefix would put
+    evening local times on the next day. Naive values are treated as UTC.
+    """
+    dt = parse_iso(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone().date().isoformat()
+
+
 class Database:
     def __init__(self, path: Path | None = None) -> None:
         self.path = path or DEFAULT_DB
@@ -220,9 +232,9 @@ class Database:
         today = local_now.date()
         monday = today - timedelta(days=today.weekday()) - timedelta(weeks=weeks_ago)
         sunday = monday + timedelta(days=6)
-        tz = local_now.tzinfo or timezone.utc
-        start = datetime(monday.year, monday.month, monday.day, tzinfo=tz)
-        end = datetime(sunday.year, sunday.month, sunday.day, 23, 59, 59, tzinfo=tz)
+        # Naive local datetimes -> astimezone() resolves the correct offset (DST-safe).
+        start = datetime(monday.year, monday.month, monday.day).astimezone()
+        end = datetime(sunday.year, sunday.month, sunday.day, 23, 59, 59).astimezone()
         start_iso, end_iso = to_iso(start), to_iso(end)
 
         with self.connect() as conn:
@@ -275,36 +287,6 @@ class Database:
                     (start_iso, end_iso),
                 ).fetchall()
             ]
-            daily = [
-                dict(r)
-                for r in conn.execute(
-                    """
-                    SELECT substr(started_at, 1, 10) AS day,
-                           COUNT(*) AS sessions,
-                           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
-                           SUM(focus_seconds) AS focus_seconds
-                    FROM sessions
-                    WHERE started_at >= ? AND started_at <= ?
-                    GROUP BY substr(started_at, 1, 10)
-                    ORDER BY day
-                    """,
-                    (start_iso, end_iso),
-                ).fetchall()
-            ]
-            daily_distractions = [
-                dict(r)
-                for r in conn.execute(
-                    """
-                    SELECT substr(logged_at, 1, 10) AS day, COUNT(*) AS count
-                    FROM distractions
-                    WHERE logged_at >= ? AND logged_at <= ?
-                    GROUP BY substr(logged_at, 1, 10)
-                    ORDER BY day
-                    """,
-                    (start_iso, end_iso),
-                ).fetchall()
-            ]
-
         focus_sessions = [s for s in sessions if s["kind"] == "focus"]
         completed = [s for s in focus_sessions if s["status"] == "completed"]
         aborted = [s for s in focus_sessions if s["status"] == "aborted"]
@@ -321,9 +303,20 @@ class Database:
             round(100 * total_focus / planned, 1) if planned else 0.0
         )
 
-        # Build full 7-day series
-        distract_by_day = {d["day"]: d["count"] for d in daily_distractions}
-        session_by_day = {d["day"]: d for d in daily}
+        # Build full 7-day series, bucketed by local calendar date
+        distract_by_day: dict[str, int] = {}
+        for d in distractions:
+            key = local_date_key(d["logged_at"])
+            distract_by_day[key] = distract_by_day.get(key, 0) + 1
+        session_by_day: dict[str, dict[str, int]] = {}
+        for sess in sessions:
+            bucket = session_by_day.setdefault(
+                local_date_key(sess["started_at"]),
+                {"sessions": 0, "completed": 0, "focus_seconds": 0},
+            )
+            bucket["sessions"] += 1
+            bucket["completed"] += 1 if sess["status"] == "completed" else 0
+            bucket["focus_seconds"] += sess["focus_seconds"] or 0
         day_series = []
         for i in range(7):
             day = (monday + timedelta(days=i)).isoformat()
