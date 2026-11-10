@@ -9,7 +9,7 @@ description = "Pomodoro timer + distraction log with weekly analytics."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Veliation AI", email = "hello@veliation.ai" }]
+authors = [{ name = "Veliation AI" }]
 keywords = [
   "pomodoro",
   "focus",
@@ -18,6 +18,7 @@ keywords = [
   "analytics",
   "cli",
   "timer",
+  "open-source",
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
