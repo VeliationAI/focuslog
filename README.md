@@ -1,49 +1,48 @@
-# Focus Log
+# Minutes to Actions
 
-**Know what steals your attention.**
+**Paste a meeting transcript. Walk out with decisions, action items, and who owns what.**
 
-Timers count minutes. Focus Log ranks interruptions — so you can change the environment, not just the willpower.
+Open-source meeting follow-through. Everyone takes notes — this extracts the actions.
 
-Open-source · MIT · built by [Veliation AI](https://github.com/VeliationAI).
+Built & maintained by [Veliation AI](https://github.com/VeliationAI).
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-onrender-3DDC97?style=flat-square)](https://focuslog-xu9t.onrender.com)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-onrender-E8A838?style=flat-square)](https://minutes-to-actions-1z5n.onrender.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
-[![CI](https://github.com/VeliationAI/focuslog/actions/workflows/ci.yml/badge.svg)](https://github.com/VeliationAI/focuslog/actions/workflows/ci.yml)
+[![CI](https://github.com/VeliationAI/minutes-to-actions/actions/workflows/ci.yml/badge.svg)](https://github.com/VeliationAI/minutes-to-actions/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB?style=flat-square)](https://www.python.org/downloads/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
 ## Live demo
 
-**https://focuslog-xu9t.onrender.com**
+**https://minutes-to-actions-1z5n.onrender.com**
 
-No install. Start a focus block, log distractions, read the weekly coach.  
-Free Render instances may sleep after idle (~30s cold start). Demo data seeds when the DB is empty.
+Hosted on Render in the **open-source** workspace. No install required.  
+Free instances may sleep after idle (~30s cold start).
 
 ## Why this exists
 
-Pomodoro apps count minutes. The useful residue is different:
+Meetings produce walls of text. The useful residue is small:
 
-- what **pulled** you away
-- which **category** wins the week
-- whether you’re actually **completing** blocks
+- what was **decided**
+- who **owns** the next step
+- when it’s **due**
+- what’s still **open**
 
-Focus Log turns interruptions into a ledger you can act on.
+Minutes to Actions turns transcripts into that residue — via CLI or a tiny web UI.
 
 ## Features
 
-- **Timer** — focus + break sessions (CLI and web)
-- **Distraction log** — reason + category, one-tap chips, `/` shortcut
-- **Weekly coach** — insight from your #1 distraction category
-- **Analytics** — completion, focus time, pulls/session, daily rhythm
-- **Streaks** — consecutive days with a completed focus block
-- **Local-first** — SQLite at `~/.focuslog/focuslog.db`
-- **Export** — JSON dump of sessions + distractions
+- **LLM extraction** — OpenAI-compatible APIs (`gpt-4o-mini` by default)
+- **Offline mode** — heuristics when no API key (demos never break)
+- **CLI + web** — same core extractor
+- **Exports** — markdown checklist or JSON
+- **Self-host ready** — `render.yaml` included
 
 ## Quick start
 
 ```bash
-git clone https://github.com/VeliationAI/focuslog.git
-cd focuslog
+git clone https://github.com/VeliationAI/minutes-to-actions.git
+cd minutes-to-actions
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
@@ -51,45 +50,56 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-### Web
+### Demo (no API key)
 
 ```bash
-focuslog serve --seed
-# → http://127.0.0.1:8765
+minutes demo
 ```
 
 ### CLI
 
 ```bash
-focuslog start -m 25 -l "Deep work"
-focuslog distract "Slack ping" -c chat
-focuslog done
-focuslog report
+minutes extract -f notes.txt
+minutes extract -f notes.txt -F markdown -o actions.md
+minutes extract -f notes.txt -F json
 ```
+
+### Web
+
+```bash
+minutes serve
+```
+
+Open [http://127.0.0.1:8766](http://127.0.0.1:8766) → **Try sample** → **Extract actions**.
 
 ## Configuration
 
-See [`.env.example`](.env.example):
+```bash
+cp .env.example .env
+```
 
-| Variable | Purpose |
-|----------|---------|
-| `FOCUSLOG_DB` | SQLite path |
-| `FOCUSLOG_SEED` | `1` seeds demo data when empty |
-| `PORT` / `HOST` | Web bind (Render sets `PORT`) |
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OPENAI_API_KEY` / `MINUTES_API_KEY` | — | API auth |
+| `MINUTES_MODEL` | `gpt-4o-mini` | Chat model |
+| `MINUTES_BASE_URL` | `https://api.openai.com/v1` | Compatible gateway |
 
-## Deploy your own
+## Deploy
 
-Fork + [Render Blueprint](https://dashboard.render.com/blueprint/new?repo=https://github.com/VeliationAI/focuslog), or:
+Public Render blueprint in `render.yaml` (workspace: **open-source**):
 
 ```bash
-uvicorn focuslog.app:app --host 0.0.0.0 --port $PORT
+uvicorn minutes.server:create_app --factory --host 0.0.0.0 --port $PORT
 ```
 
 ## Contributing
 
-PRs welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).  
-Security: [SECURITY.md](SECURITY.md) · Changes: [CHANGELOG.md](CHANGELOG.md)
+PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+- Bug reports & ideas → [Issues](https://github.com/VeliationAI/minutes-to-actions/issues)
+- Security → [SECURITY.md](SECURITY.md)
+- Changelog → [CHANGELOG.md](CHANGELOG.md)
 
 ## License
 
-[MIT](LICENSE) © 2026 [Veliation AI](https://github.com/VeliationAI)
+[MIT](LICENSE) © Veliation AI
