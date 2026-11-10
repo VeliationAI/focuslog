@@ -1,30 +1,26 @@
 ---
 name: Bug report
-about: Something broken in CLI, web, or extraction
+about: Something isn’t working as expected
 title: "[bug] "
 labels: bug
 ---
 
-## What happened
+**Describe the bug**
+A clear description of what went wrong.
 
-<!-- Clear description -->
-
-## Expected
-
-## Steps to reproduce
-
+**To reproduce**
 1.
 2.
 3.
 
-## Environment
+**Expected behavior**
 
+
+**Environment**
 - OS:
 - Python version:
-- Install method (`pip install -e .` / Render / other):
-- Surface: CLI / Web / API
-- Extraction mode: LLM / heuristic
+- Focus Log version (`focuslog version`):
+- Surface: CLI / Web / Live demo
 
-## Extra context
-
-<!-- Logs, screenshots, redacted transcript snippets -->
+**Screenshots / logs**
+Optional.

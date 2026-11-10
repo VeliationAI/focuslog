@@ -1,22 +1,18 @@
 ---
 name: Feature request
-about: Suggest an improvement for Minutes to Actions
+about: Suggest an idea for Focus Log
 title: "[feature] "
 labels: enhancement
 ---
 
-## Problem
+**Problem**
+What attention / focus problem does this solve?
 
-<!-- What friction exists today? -->
+**Proposal**
+How should it work in the protect → log → review loop?
 
-## Proposal
+**Alternatives**
+Anything else you’ve considered?
 
-<!-- What should change? -->
-
-## Why it matters
-
-<!-- Who benefits? How often? -->
-
-## Alternatives considered
-
-<!-- Optional -->
+**Additional context**
+Optional mocks, links, or related issues.

@@ -1,15 +1,16 @@
 ## Summary
+- 
 
-<!-- Why this change exists -->
-
-## Changes
-
--
--
+## Type of change
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Docs
+- [ ] Refactor / chore
 
 ## Test plan
+- [ ] `focuslog version`
+- [ ] CLI smoke: start → distract → done → report
+- [ ] `focuslog serve --seed` loads the dashboard
 
-- [ ] `minutes demo` works
-- [ ] `minutes extract -f minutes/sample_transcript.txt --heuristic` works
-- [ ] Web UI loads (`minutes serve`) if UI touched
-- [ ] Docs updated if behavior changed
+## Notes
+Linked issue: #
