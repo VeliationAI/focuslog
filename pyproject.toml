@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "focuslog"
+version = "1.0.0"
+description = "Pomodoro timer plus distraction log with weekly analytics."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "typer>=0.12.0",
+  "rich>=13.7.0",
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+  "jinja2>=3.1.0",
+  "python-multipart>=0.0.9",
+]
+
+[project.scripts]
+focuslog = "focuslog.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["focuslog*"]
+
+[tool.setuptools.package-data]
+focuslog = ["static/*", "templates/*"]

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Focus Log</title>
+  <meta name="description" content="Pomodoro timer plus distraction analytics. Know what steals your attention." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <p class="brand">Focus Log</p>
+    <p class="tagline">Know what steals your attention</p>
+  </header>
+
+  <main>
+    <section class="hero" id="timer-section">
+      <div class="hero-copy">
+        <h1 class="brand-hero">Focus Log</h1>
+        <p class="hero-line" id="hero-status">A quiet desk for deep work — and a ledger for every break in attention.</p>
+      </div>
+
+      <div class="timer-stage">
+        <div class="ring-wrap" data-state="idle">
+          <svg class="ring" viewBox="0 0 240 240" aria-hidden="true">
+            <circle class="ring-track" cx="120" cy="120" r="104" />
+            <circle class="ring-progress" cx="120" cy="120" r="104" />
+          </svg>
+          <div class="timer-core">
+            <p class="timer-kind" id="timer-kind">Ready</p>
+            <p class="timer-digits" id="timer-digits">25:00</p>
+            <p class="timer-label" id="timer-label">Set a block. Protect it.</p>
+          </div>
+        </div>
+
+        <form class="start-form" id="start-form">
+          <label class="field">
+            <span>Minutes</span>
+            <input type="number" id="minutes" name="minutes" min="1" max="180" value="25" />
+          </label>
+          <label class="field grow">
+            <span>Working on</span>
+            <input type="text" id="label" name="label" placeholder="Deep work, writing, review…" maxlength="120" />
+          </label>
+          <div class="cta-row">
+            <button type="submit" class="btn primary" id="btn-start">Start focus</button>
+            <button type="button" class="btn ghost" id="btn-break">5m break</button>
+          </div>
+        </form>
+
+        <div class="active-actions hidden" id="active-actions">
+          <button type="button" class="btn primary" id="btn-done">Complete</button>
+          <button type="button" class="btn warn" id="btn-abort">Abort</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="distract-strip" id="distract-section">
+      <div class="distract-intro">
+        <h2>Broke focus?</h2>
+        <p>Log it in one breath. Patterns appear by Friday.</p>
+      </div>
+      <form class="distract-form" id="distract-form">
+        <input type="text" id="reason" name="reason" placeholder="What pulled you away?" required maxlength="200" />
+        <select id="category" name="category" aria-label="Category">
+          <option value="chat">Chat / Slack</option>
+          <option value="social">Social</option>
+          <option value="email">Email</option>
+          <option value="phone">Phone</option>
+          <option value="web">Web</option>
+          <option value="meetings">Meetings</option>
+          <option value="people">People</option>
+          <option value="environment">Environment</option>
+          <option value="other" selected>Other</option>
+        </select>
+        <button type="submit" class="btn coral">Log distraction</button>
+      </form>
+      <p class="toast hidden" id="toast" role="status"></p>
+    </section>
+
+    <section class="analytics" id="analytics">
+      <div class="section-head">
+        <h2>This week</h2>
+        <p>Your attention profile — not just how long you sat, but what interrupted the sit.</p>
+        <div class="week-nav">
+          <button type="button" class="btn ghost compact" id="week-prev" aria-label="Previous week">←</button>
+          <span id="week-range">—</span>
+          <button type="button" class="btn ghost compact" id="week-next" aria-label="Next week" disabled>→</button>
+        </div>
+      </div>
+
+      <div class="metric-row" id="metric-row">
+        <div class="metric">
+          <span class="metric-value" id="m-focus">—</span>
+          <span class="metric-label">Focus time</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value" id="m-completion">—</span>
+          <span class="metric-label">Completion</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value accent" id="m-distractions">—</span>
+          <span class="metric-label">Distractions</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value" id="m-per">—</span>
+          <span class="metric-label">Per session</span>
+        </div>
+      </div>
+
+      <div class="analytics-grid">
+        <div class="panel">
+          <h3>Daily rhythm</h3>
+          <div class="bars" id="day-bars" role="img" aria-label="Daily focus and distractions"></div>
+        </div>
+        <div class="panel">
+          <h3>Top distractions</h3>
+          <ol class="rank-list" id="top-reasons"></ol>
+        </div>
+        <div class="panel">
+          <h3>By category</h3>
+          <div class="cat-list" id="top-categories"></div>
+        </div>
+        <div class="panel">
+          <h3>Recent pulls</h3>
+          <ul class="feed" id="recent-distractions"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>CLI · <code>focuslog start</code> · <code>focuslog distract</code> · <code>focuslog report</code></p>
+    <button type="button" class="btn ghost compact" id="btn-seed">Load demo week</button>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
