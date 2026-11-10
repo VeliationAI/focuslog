@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: focuslog
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt && pip install -e .
+    startCommand: uvicorn focuslog.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: FOCUSLOG_DB
+        value: /var/data/focuslog.db
+      - key: FOCUSLOG_SEED
+        value: "1"
+    disk:
+      name: focuslog-data
+      mountPath: /var/data
+      sizeGB: 1

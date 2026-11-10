@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -11,8 +12,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
+from focuslog import __version__
 from focuslog.analytics import category_label, format_duration
 from focuslog.db import Database
+from focuslog.insights import product_copy
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 TEMPLATES = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
@@ -37,7 +40,7 @@ class FinishBody(BaseModel):
 def create_app(db_path: Path | None = None) -> FastAPI:
     db = Database(db_path)
 
-    app = FastAPI(title="Focus Log", version="1.0.0")
+    app = FastAPI(title="Focus Log", version=__version__)
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
 
     @app.get("/", response_class=HTMLResponse)
@@ -48,8 +51,13 @@ def create_app(db_path: Path | None = None) -> FastAPI:
             {
                 "format_duration": format_duration,
                 "category_label": category_label,
+                "product": product_copy(),
             },
         )
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok", "version": __version__}
 
     @app.get("/api/overview")
     def overview() -> dict[str, Any]:
@@ -109,7 +117,9 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     return app
 
 
-def run(host: str = "127.0.0.1", port: int = 8765, db_path: Optional[Path] = None) -> None:
+def run(host: str | None = None, port: int | None = None, db_path: Optional[Path] = None) -> None:
     import uvicorn
 
-    uvicorn.run(create_app(db_path=db_path), host=host, port=port)
+    bind_host = host or os.environ.get("HOST", "0.0.0.0")
+    bind_port = port or int(os.environ.get("PORT", "8765"))
+    uvicorn.run(create_app(db_path=db_path), host=bind_host, port=bind_port)

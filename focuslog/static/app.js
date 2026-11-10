@@ -23,7 +23,6 @@
     activeActions: document.getElementById("active-actions"),
     minutes: document.getElementById("minutes"),
     workLabel: document.getElementById("label"),
-    btnStart: document.getElementById("btn-start"),
     btnBreak: document.getElementById("btn-break"),
     btnDone: document.getElementById("btn-done"),
     btnAbort: document.getElementById("btn-abort"),
@@ -42,7 +41,15 @@
     topReasons: document.getElementById("top-reasons"),
     topCategories: document.getElementById("top-categories"),
     recent: document.getElementById("recent-distractions"),
+    recentSessions: document.getElementById("recent-sessions"),
     btnSeed: document.getElementById("btn-seed"),
+    insightBanner: document.getElementById("insight-banner"),
+    insightHeadline: document.getElementById("insight-headline"),
+    insightBody: document.getElementById("insight-body"),
+    pulseStreak: document.getElementById("pulse-streak"),
+    pulseAllFocus: document.getElementById("pulse-all-focus"),
+    pulseAllDistract: document.getElementById("pulse-all-distract"),
+    quickChips: document.getElementById("quick-chips"),
   };
 
   let activeSession = null;
@@ -71,6 +78,14 @@
     return CATEGORY_LABELS[key] || String(key || "other").replaceAll("_", " ");
   }
 
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
   function showToast(message) {
     els.toast.textContent = message;
     els.toast.classList.remove("hidden", "show");
@@ -86,7 +101,8 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.detail || "Request failed");
+      const detail = data.detail;
+      throw new Error(typeof detail === "string" ? detail : "Request failed");
     }
     return data;
   }
@@ -100,7 +116,7 @@
     els.digits.textContent = formatClock(presetMinutes * 60);
     els.label.textContent = "Set a block. Protect it.";
     els.heroStatus.textContent =
-      "A quiet desk for deep work — and a ledger for every break in attention.";
+      "Timers count minutes. Focus Log ranks interruptions — so you can change the environment, not just the willpower.";
     els.ringProgress.style.strokeDashoffset = "0";
     els.startForm.classList.remove("hidden");
     els.activeActions.classList.add("hidden");
@@ -139,6 +155,19 @@
     clearInterval(tickTimer);
     renderActive();
     tickTimer = setInterval(renderActive, 250);
+  }
+
+  function renderInsight(insight) {
+    if (!insight) return;
+    els.insightBanner.dataset.tone = insight.tone || "idle";
+    els.insightHeadline.textContent = insight.headline;
+    els.insightBody.textContent = insight.body;
+  }
+
+  function renderPulse(overview) {
+    els.pulseStreak.textContent = String(overview.streak_days || 0);
+    els.pulseAllFocus.textContent = formatDuration((overview.all_time || {}).focus_seconds);
+    els.pulseAllDistract.textContent = String((overview.all_time || {}).distractions || 0);
   }
 
   function renderReport(report) {
@@ -222,14 +251,26 @@
         })
         .join("");
     }
-  }
 
-  function escapeHtml(value) {
-    return String(value)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;");
+    const sessions = (report.recent_sessions || []).filter((s) => s.kind === "focus").slice(0, 6);
+    if (!sessions.length) {
+      els.recentSessions.innerHTML = `<li class="empty" style="display:block;border:0">No sessions this week yet.</li>`;
+    } else {
+      els.recentSessions.innerHTML = sessions
+        .map((s) => {
+          const stamp = new Date(s.started_at).toLocaleString(undefined, {
+            weekday: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          return `
+            <li>
+              <span>${escapeHtml(s.label || "Focus")} <span class="meta">${s.status} · ${formatDuration(s.focus_seconds)}</span></span>
+              <span class="meta">${stamp}</span>
+            </li>`;
+        })
+        .join("");
+    }
   }
 
   async function refresh() {
@@ -238,8 +279,23 @@
     if (activeSession) startTicker();
     else setIdleUI(Number(els.minutes.value) || 25);
 
-    const report = await api(`/api/report?weeks_ago=${weeksAgo}`);
+    renderInsight(overview.insight);
+    renderPulse(overview);
+
+    const report = weeksAgo === 0 ? overview.week : await api(`/api/report?weeks_ago=${weeksAgo}`);
     renderReport(report);
+  }
+
+  async function logDistraction(reason, category) {
+    const clean = String(reason || "").trim();
+    if (!clean) return;
+    await api("/api/distract", {
+      method: "POST",
+      body: JSON.stringify({ reason: clean, category: category || "other" }),
+    });
+    els.reason.value = "";
+    showToast(`Logged: ${clean}`);
+    await refresh();
   }
 
   els.startForm.addEventListener("submit", async (e) => {
@@ -297,20 +353,19 @@
 
   els.distractForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const reason = els.reason.value.trim();
-    if (!reason) return;
     try {
-      await api("/api/distract", {
-        method: "POST",
-        body: JSON.stringify({
-          reason,
-          category: els.category.value,
-        }),
-      });
-      els.reason.value = "";
-      showToast(`Logged: ${reason}`);
-      const report = await api(`/api/report?weeks_ago=${weeksAgo}`);
-      renderReport(report);
+      await logDistraction(els.reason.value, els.category.value);
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
+  els.quickChips.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-reason]");
+    if (!btn) return;
+    try {
+      els.category.value = btn.dataset.category || "other";
+      await logDistraction(btn.dataset.reason, btn.dataset.category);
     } catch (err) {
       showToast(err.message);
     }
@@ -340,6 +395,16 @@
     if (!activeSession) {
       const m = Number(els.minutes.value) || 25;
       els.digits.textContent = formatClock(m * 60);
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      e.preventDefault();
+      els.reason.focus();
+      document.getElementById("distract-section").scrollIntoView({ behavior: "smooth", block: "center" });
     }
   });
 

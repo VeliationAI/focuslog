@@ -3,11 +3,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "focuslog"
-version = "1.0.0"
-description = "Pomodoro timer plus distraction log with weekly analytics."
+name = "minutes-to-actions"
+version = "1.1.0"
+description = "Paste a meeting transcript → decisions, action items, and owners."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Veliation AI" }]
+keywords = ["meetings", "action-items", "productivity", "llm", "minutes"]
 dependencies = [
   "typer>=0.12.0",
   "rich>=13.7.0",
@@ -15,13 +18,24 @@ dependencies = [
   "uvicorn[standard]>=0.30.0",
   "jinja2>=3.1.0",
   "python-multipart>=0.0.9",
+  "httpx>=0.27.0",
+  "pydantic>=2.7.0",
 ]
 
+[project.optional-dependencies]
+focuslog = []
+
 [project.scripts]
+minutes = "minutes.cli:app"
 focuslog = "focuslog.cli:app"
 
+[project.urls]
+Homepage = "https://github.com/VeliationAI/minutes-to-actions"
+Repository = "https://github.com/VeliationAI/minutes-to-actions"
+
 [tool.setuptools.packages.find]
-include = ["focuslog*"]
+include = ["minutes*", "focuslog*"]
 
 [tool.setuptools.package-data]
+minutes = ["static/*", "templates/*", "sample_transcript.txt"]
 focuslog = ["static/*", "templates/*"]

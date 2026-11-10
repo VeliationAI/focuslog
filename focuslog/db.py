@@ -361,9 +361,59 @@ class Database:
             "recent_sessions": sessions[-20:][::-1],
         }
 
+    def streak_days(self) -> int:
+        """Consecutive local calendar days (ending today) with a completed focus session."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT started_at FROM sessions
+                WHERE kind = 'focus' AND status = 'completed'
+                ORDER BY started_at DESC
+                LIMIT 400
+                """
+            ).fetchall()
+        if not rows:
+            return 0
+        local_tz = datetime.now().astimezone().tzinfo or timezone.utc
+        days = {
+            parse_iso(r["started_at"]).astimezone(local_tz).date()
+            for r in rows
+        }
+        cursor = datetime.now().astimezone(local_tz).date()
+        streak = 0
+        while cursor in days:
+            streak += 1
+            cursor -= timedelta(days=1)
+        return streak
+
+    def all_time_stats(self) -> dict[str, Any]:
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    COUNT(*) AS sessions,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+                    SUM(focus_seconds) AS focus_seconds
+                FROM sessions
+                WHERE kind = 'focus'
+                """
+            ).fetchone()
+            distract = conn.execute(
+                "SELECT COUNT(*) AS c FROM distractions"
+            ).fetchone()["c"]
+        return {
+            "sessions": row["sessions"] or 0,
+            "completed": row["completed"] or 0,
+            "focus_seconds": row["focus_seconds"] or 0,
+            "distractions": distract or 0,
+        }
+
     def overview(self) -> dict[str, Any]:
+        from focuslog.insights import build_insight, product_copy
+
         active = self.get_active_session()
         week = self.weekly_report(weeks_ago=0)
+        streak = self.streak_days()
         recent_distractions = self.list_distractions(days=7, limit=12)
         recent_sessions = self.list_sessions(days=7, limit=12)
         return {
@@ -371,6 +421,10 @@ class Database:
             "week": week,
             "recent_distractions": recent_distractions,
             "recent_sessions": recent_sessions,
+            "streak_days": streak,
+            "all_time": self.all_time_stats(),
+            "insight": build_insight(week, streak_days=streak),
+            "product": product_copy(),
         }
 
     def seed_demo(self) -> None:

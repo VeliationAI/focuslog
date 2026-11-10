@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Focus Log</title>
-  <meta name="description" content="Pomodoro timer plus distraction analytics. Know what steals your attention." />
+  <title>Focus Log — Know what steals your attention</title>
+  <meta name="description" content="Pomodoro timer plus distraction analytics. Log every pull on your attention and see your weekly pattern." />
+  <meta property="og:title" content="Focus Log" />
+  <meta property="og:description" content="Timers count minutes. Focus Log ranks interruptions." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -15,15 +17,33 @@
   <div class="grain" aria-hidden="true"></div>
 
   <header class="topbar">
-    <p class="brand">Focus Log</p>
-    <p class="tagline">Know what steals your attention</p>
+    <a class="brand" href="#timer-section">Focus Log</a>
+    <nav class="nav">
+      <a href="#loop">How it works</a>
+      <a href="#analytics">This week</a>
+      <a href="#distract-section">Log pull</a>
+    </nav>
   </header>
 
   <main>
     <section class="hero" id="timer-section">
       <div class="hero-copy">
         <h1 class="brand-hero">Focus Log</h1>
-        <p class="hero-line" id="hero-status">A quiet desk for deep work — and a ledger for every break in attention.</p>
+        <p class="hero-line" id="hero-status">Timers count minutes. Focus Log ranks interruptions — so you can change the environment, not just the willpower.</p>
+        <div class="pulse-row" id="pulse-row">
+          <div class="pulse">
+            <span class="pulse-value" id="pulse-streak">0</span>
+            <span class="pulse-label">day streak</span>
+          </div>
+          <div class="pulse">
+            <span class="pulse-value" id="pulse-all-focus">—</span>
+            <span class="pulse-label">all-time focus</span>
+          </div>
+          <div class="pulse">
+            <span class="pulse-value accent" id="pulse-all-distract">—</span>
+            <span class="pulse-label">logged pulls</span>
+          </div>
+        </div>
       </div>
 
       <div class="timer-stage">
@@ -61,13 +81,43 @@
       </div>
     </section>
 
+    <section class="insight-banner" id="insight-banner" data-tone="idle">
+      <p class="insight-kicker">Weekly coach</p>
+      <h2 id="insight-headline">Start your first focus block</h2>
+      <p id="insight-body">Protect 25 minutes. When attention breaks, log what pulled you — that’s the product.</p>
+    </section>
+
+    <section class="loop" id="loop">
+      <div class="section-head compact">
+        <h2>The product loop</h2>
+        <p>Three moves. That’s the whole product.</p>
+      </div>
+      <ol class="loop-steps">
+        <li>
+          <span class="step-num">01</span>
+          <h3>Protect a block</h3>
+          <p>Start a Pomodoro. One job. A clear end.</p>
+        </li>
+        <li>
+          <span class="step-num">02</span>
+          <h3>Log the pull</h3>
+          <p>When focus breaks, name it in one breath.</p>
+        </li>
+        <li>
+          <span class="step-num">03</span>
+          <h3>Read the week</h3>
+          <p>Friday shows your top distractions. Fix the top one first.</p>
+        </li>
+      </ol>
+    </section>
+
     <section class="distract-strip" id="distract-section">
       <div class="distract-intro">
         <h2>Broke focus?</h2>
-        <p>Log it in one breath. Patterns appear by Friday.</p>
+        <p>Log it in one breath. Patterns appear by Friday. Press <kbd>/</kbd> to jump here.</p>
       </div>
       <form class="distract-form" id="distract-form">
-        <input type="text" id="reason" name="reason" placeholder="What pulled you away?" required maxlength="200" />
+        <input type="text" id="reason" name="reason" placeholder="What pulled you away?" required maxlength="200" autocomplete="off" />
         <select id="category" name="category" aria-label="Category">
           <option value="chat">Chat / Slack</option>
           <option value="social">Social</option>
@@ -81,6 +131,13 @@
         </select>
         <button type="submit" class="btn coral">Log distraction</button>
       </form>
+      <div class="quick-chips" id="quick-chips" aria-label="Quick log">
+        <button type="button" data-reason="Slack ping" data-category="chat">Slack</button>
+        <button type="button" data-reason="Phone unlock" data-category="phone">Phone</button>
+        <button type="button" data-reason="Email check" data-category="email">Email</button>
+        <button type="button" data-reason="Social scroll" data-category="social">Social</button>
+        <button type="button" data-reason="Curiosity tab" data-category="web">Web tab</button>
+      </div>
       <p class="toast hidden" id="toast" role="status"></p>
     </section>
 
@@ -128,6 +185,10 @@
           <div class="cat-list" id="top-categories"></div>
         </div>
         <div class="panel">
+          <h3>Recent sessions</h3>
+          <ul class="feed" id="recent-sessions"></ul>
+        </div>
+        <div class="panel wide">
           <h3>Recent pulls</h3>
           <ul class="feed" id="recent-distractions"></ul>
         </div>
@@ -136,8 +197,15 @@
   </main>
 
   <footer class="footer">
-    <p>CLI · <code>focuslog start</code> · <code>focuslog distract</code> · <code>focuslog report</code></p>
-    <button type="button" class="btn ghost compact" id="btn-seed">Load demo week</button>
+    <div>
+      <p class="footer-brand">Focus Log</p>
+      <p>Local-first attention analytics · CLI + web</p>
+      <p class="footer-cli"><code>focuslog start</code> · <code>focuslog distract</code> · <code>focuslog report</code></p>
+    </div>
+    <div class="footer-actions">
+      <button type="button" class="btn ghost compact" id="btn-seed">Load demo week</button>
+      <a class="btn ghost compact" href="https://github.com/VeliationAI/focuslog" target="_blank" rel="noopener">GitHub</a>
+    </div>
   </footer>
 
   <script src="/static/app.js"></script>

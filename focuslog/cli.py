@@ -321,7 +321,9 @@ def serve(
     seed: bool = typer.Option(False, "--seed", help="Load demo data if DB is empty."),
     db_path: Optional[Path] = typer.Option(None, "--db", hidden=True),
 ) -> None:
-    """Launch the Focus Log web dashboard."""
+    """Launch the Focus Log product dashboard."""
+    import os
+
     import uvicorn
 
     from focuslog.server import create_app
@@ -331,15 +333,18 @@ def serve(
         db.seed_demo()
         console.print("[dim]Demo data ready (skipped if DB already had sessions).[/]")
 
+    bind_host = host or os.environ.get("HOST", "127.0.0.1")
+    bind_port = int(os.environ.get("PORT", port))
+    display = "127.0.0.1" if bind_host in {"0.0.0.0", "::"} else bind_host
     console.print(
         Panel(
-            f"[bold #3DDC97]Focus Log[/] dashboard\n"
-            f"http://{host}:{port}\n\n"
+            f"[bold #3DDC97]Focus Log[/] product\n"
+            f"http://{display}:{bind_port}\n\n"
             f"[dim]Data · {db.path}[/]",
             border_style="#3DDC97",
         )
     )
-    uvicorn.run(create_app(db_path=db.path), host=host, port=port, log_level="info")
+    uvicorn.run(create_app(db_path=db.path), host=bind_host, port=bind_port, log_level="info")
 
 
 @app.command()
