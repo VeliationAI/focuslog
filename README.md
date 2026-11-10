@@ -1,14 +1,19 @@
-# Focus Log
+# Minutes to Actions
 
-**Know what steals your attention.**
+**Paste a meeting transcript. Walk out with decisions, action items, and who owns what.**
 
-Timers count minutes. Focus Log ranks interruptions — so you can change the environment, not just the willpower.
+Everyone takes notes. Nobody extracts the actions. This does.
+
+Built by [Veliation AI](https://github.com/VeliationAI).
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-amber.svg)](https://www.python.org/downloads/)
 
 ## Product loop
 
-1. **Protect a block** — start a Pomodoro (CLI or web)
-2. **Log the pull** — when focus breaks, name what stole it
-3. **Read the week** — top distractions, categories, daily rhythm, coaching insight
+1. **Paste** — Zoom / Meet / Teams transcript or speaker notes
+2. **Extract** — LLM (or offline heuristics) finds decisions, owners, dues, open questions
+3. **Ship** — Copy markdown or JSON into Slack, Notion, Linear, email
 
 ## Quick start
 
@@ -23,50 +28,65 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-### Web product
+### Demo (no API key required)
 
 ```bash
-focuslog serve --seed
+minutes demo
 ```
-
-Open [http://127.0.0.1:8765](http://127.0.0.1:8765).
 
 ### CLI
 
 ```bash
-focuslog start -m 25 -l "Deep work"
-focuslog distract "Slack ping" -c chat
-focuslog done
-focuslog report
-focuslog status
+minutes extract -f notes.txt
+minutes extract -f notes.txt -F markdown -o actions.md
+minutes extract -f notes.txt -F json
+cat notes.txt | minutes extract --heuristic
 ```
 
-## What’s inside
-
-| Surface | Role |
-|---------|------|
-| Timer | Focus / break sessions with live countdown |
-| Distraction log | Reason + category, one-tap chips on web |
-| Weekly coach | Insight from your #1 distraction category |
-| Analytics | Completion, focus time, pulls/session, daily bars |
-| Streak | Consecutive days with a completed focus block |
-
-Data is local-first SQLite (`~/.focuslog/focuslog.db` by default).
-
-## Deploy (Render)
-
-`render.yaml` is included. Blueprint deploy:
-
-1. Open [Render Blueprint](https://dashboard.render.com/blueprints/new)
-2. Connect `VeliationAI/focuslog`
-3. Apply — persistent disk keeps the SQLite ledger across restarts
-
-Or from CLI after Render login:
+### Web product
 
 ```bash
-# uses render.yaml in repo root
+minutes serve
 ```
 
-## Repo
+Open [http://127.0.0.1:8766](http://127.0.0.1:8766) → **Load sample** → **Extract actions**.
 
-https://github.com/VeliationAI/focuslog
+## LLM mode
+
+```bash
+# Windows PowerShell
+$env:OPENAI_API_KEY = "sk-..."
+
+# macOS / Linux
+export OPENAI_API_KEY=sk-...
+```
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OPENAI_API_KEY` / `MINUTES_API_KEY` | — | API auth |
+| `MINUTES_MODEL` | `gpt-4o-mini` | Chat model |
+| `MINUTES_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible gateway |
+
+No key? Offline heuristics still run — demos never break.
+
+## What you get
+
+| Output | Description |
+|--------|-------------|
+| **Decisions** | Commitments already made |
+| **Action items** | Task + owner + due + priority |
+| **Open questions** | Unresolved asks |
+| **Attendees** | Speakers / listed participants |
+| **Export** | Markdown checklist or JSON |
+
+## Deploy on Render
+
+`render.yaml` is included. Start command:
+
+```bash
+uvicorn minutes.server:create_app --factory --host 0.0.0.0 --port $PORT
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
