@@ -11,10 +11,6 @@ services:
       - key: PYTHON_VERSION
         value: "3.12.7"
       - key: FOCUSLOG_DB
-        value: /var/data/focuslog.db
+        value: /opt/render/project/src/.data/focuslog.db
       - key: FOCUSLOG_SEED
         value: "1"
-    disk:
-      name: focuslog-data
-      mountPath: /var/data
-      sizeGB: 1
