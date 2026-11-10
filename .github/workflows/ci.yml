@@ -23,9 +23,11 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
-      - name: Import + demo smoke
+      - name: Import + CLI smoke
         run: |
-          python -c "from minutes.extractor import extract; from minutes.server import create_app; print('ok')"
-          minutes version
-          minutes extract -f minutes/sample_transcript.txt --heuristic -F json -o /tmp/out.json
-          python -c "import json; d=json.load(open('/tmp/out.json')); assert 'action_items' in d; assert 'decisions' in d; print(len(d['action_items']), 'actions')"
+          python -c "from focuslog.server import create_app; from focuslog.insights import build_insight; print('ok')"
+          focuslog version
+          focuslog start -m 1 -l "CI" --no-tick
+          focuslog distract "CI pull" -c chat
+          focuslog done
+          focuslog report
