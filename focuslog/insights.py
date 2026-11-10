@@ -65,8 +65,8 @@ def build_insight(week: dict[str, Any], *, streak_days: int = 0) -> dict[str, An
         }
 
     return {
-        "headline": f"{sessions} sessions · {distractions} distractions",
-        "body": "Patterns sharpen after a few logged pulls. Keep the ledger honest.",
+        "headline": f"{sessions} block{'' if sessions == 1 else 's'} · {distractions} pull{'' if distractions == 1 else 's'} logged",
+        "body": "Tap a pull each time focus breaks. After a few, Focus Log names your #1 distraction.",
         "severity": "neutral",
         "cta": "Continue",
     }
