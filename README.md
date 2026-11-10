@@ -2,40 +2,55 @@
 
 **Paste a meeting transcript. Walk out with decisions, action items, and who owns what.**
 
-Everyone takes notes. Nobody extracts the actions. This does.
+Open-source meeting follow-through. Everyone takes notes — this extracts the actions.
 
-Built by [Veliation AI](https://github.com/VeliationAI).
+Built & maintained by [Veliation AI](https://github.com/VeliationAI).
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-minutes--to--actions.onrender.com-E8A838?style=flat-square)](https://minutes-to-actions.onrender.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-amber.svg)](https://www.python.org/downloads/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-onrender-E8A838?style=flat-square)](https://minutes-to-actions.onrender.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![CI](https://github.com/VeliationAI/minutes-to-actions/actions/workflows/ci.yml/badge.svg)](https://github.com/VeliationAI/minutes-to-actions/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB?style=flat-square)](https://www.python.org/downloads/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
-## Live app
+## Live demo
 
-**Try it now (public):** [https://minutes-to-actions.onrender.com](https://minutes-to-actions.onrender.com/)
+**https://minutes-to-actions.onrender.com**
 
-Hosted on [Render](https://render.com). No install required — paste a transcript and extract actions. Free instances may sleep after idle; the first load can take ~30s.
+No install. Paste a transcript → get decisions, owners, and dues.  
+Free Render instances may sleep after idle (~30s cold start).
 
-## Product loop
+## Why this exists
 
-1. **Paste** — Zoom / Meet / Teams transcript or speaker notes
-2. **Extract** — LLM (or offline heuristics) finds decisions, owners, dues, open questions
-3. **Ship** — Copy markdown or JSON into Slack, Notion, Linear, email
+Meetings produce walls of text. The useful residue is small:
+
+- what was **decided**
+- who **owns** the next step
+- when it’s **due**
+- what’s still **open**
+
+Minutes to Actions turns transcripts into that residue — via CLI or a tiny web UI.
+
+## Features
+
+- **LLM extraction** — OpenAI-compatible APIs (`gpt-4o-mini` by default)
+- **Offline mode** — heuristics when no API key (demos never break)
+- **CLI + web** — same core extractor
+- **Exports** — markdown checklist or JSON
+- **Self-host ready** — `render.yaml` included
 
 ## Quick start
 
 ```bash
+git clone https://github.com/VeliationAI/minutes-to-actions.git
+cd minutes-to-actions
 python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
-
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
 ```
 
-### Demo (no API key required)
+### Demo (no API key)
 
 ```bash
 minutes demo
@@ -50,7 +65,7 @@ minutes extract -f notes.txt -F json
 cat notes.txt | minutes extract --heuristic
 ```
 
-### Web product
+### Web
 
 ```bash
 minutes serve
@@ -58,42 +73,61 @@ minutes serve
 
 Open [http://127.0.0.1:8766](http://127.0.0.1:8766) → **Load sample** → **Extract actions**.
 
-## LLM mode
+## Configuration
 
 ```bash
-# Windows PowerShell
-$env:OPENAI_API_KEY = "sk-..."
-
-# macOS / Linux
-export OPENAI_API_KEY=sk-...
+cp .env.example .env
 ```
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `OPENAI_API_KEY` / `MINUTES_API_KEY` | — | API auth |
 | `MINUTES_MODEL` | `gpt-4o-mini` | Chat model |
-| `MINUTES_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible gateway |
+| `MINUTES_BASE_URL` | `https://api.openai.com/v1` | Compatible gateway |
 
-No key? Offline heuristics still run — demos never break.
+Works with OpenAI and other OpenAI-compatible providers.
 
-## What you get
+## Output shape
 
-| Output | Description |
-|--------|-------------|
+| Field | Description |
+|-------|-------------|
 | **Decisions** | Commitments already made |
 | **Action items** | Task + owner + due + priority |
 | **Open questions** | Unresolved asks |
 | **Attendees** | Speakers / listed participants |
-| **Export** | Markdown checklist or JSON |
 
-## Deploy on Render
+## Architecture
 
-`render.yaml` is included. Start command:
+```
+transcript → extractor (LLM | heuristic) → MinutesResult → CLI tables / web UI / markdown / JSON
+```
+
+| Path | Role |
+|------|------|
+| `minutes/extractor.py` | Extraction core |
+| `minutes/models.py` | Typed result models |
+| `minutes/cli.py` | Typer CLI |
+| `minutes/server.py` | FastAPI app |
+| `minutes/templates/` + `static/` | Web product UI |
+
+## Deploy
+
+Public Render blueprint in `render.yaml`:
 
 ```bash
 uvicorn minutes.server:create_app --factory --host 0.0.0.0 --port $PORT
 ```
 
+## Contributing
+
+PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+- Bug reports & ideas → [Issues](https://github.com/VeliationAI/minutes-to-actions/issues)
+- Security → [SECURITY.md](SECURITY.md)
+- Changelog → [CHANGELOG.md](CHANGELOG.md)
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE) © Veliation AI
+
+Free to use, fork, self-host, and ship in your stack.
